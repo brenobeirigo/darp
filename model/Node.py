@@ -1,0 +1,83 @@
+class Node:
+    
+    count = 0
+    
+    def __init__(self, pos, point=None, alias=None):
+        Node.count += 1 
+        self.id = Node.count
+        self.alias = (alias if alias else self.id)
+        self.pos = pos
+        self.point = point
+        self.arrival = None
+        self.departure = None
+
+    def __str__(self) -> str:
+        return self.alias
+    
+    def __repr__(self) -> str: 
+        return self.alias
+
+class PickupNode(Node):
+    
+    def __init__(self, pos, request, point=None):
+        super().__init__(pos, point=point, alias=request.alias)
+        self.request = request
+    
+    @property
+    def tw(self):
+        return self.request.pickup_tw
+    
+    @property
+    def service_delay(self):
+        return self.request.pickup_delay
+    
+    def __str__(self) -> str:
+        return super().__str__() + str(str(self.tw))
+    
+class DropoffNode(Node):
+    
+    def __init__(self, pos, request, point=None):
+        super().__init__(pos, point=point, alias=request.alias + "'")
+        self.request = request
+    
+    @property
+    def tw(self):
+        return self.request.dropoff_tw
+    
+    @property
+    def service_delay(self):
+        return self.request.dropoff_delay
+    
+    def __str__(self) -> str:
+        return super().__str__() + str(self.tw)
+        
+class OriginNode(Node):
+    
+    def __init__(self, pos, vehicle, point=None):
+        super().__init__(pos, point=point, alias=f"O({vehicle.alias})")
+        self.vehicle = vehicle
+
+    @property
+    def tw(self):
+        return self.vehicle.origin_tw
+
+    @property
+    def service_delay(self):
+        return 0
+    
+class DestinationNode(Node):
+    
+    def __init__(self, pos, vehicle, point=None):
+        super().__init__(pos, point=point, alias=f"D({vehicle.alias})")
+        self.vehicle = vehicle
+
+    @property
+    def tw(self):
+        return self.vehicle.destination_tw
+    
+    def __str__(self) -> str:
+        return super().__str__() + str(self.tw)
+    
+    @property
+    def service_delay(self):
+        return 0
