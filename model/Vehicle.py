@@ -25,21 +25,25 @@ class Vehicle:
         Vehicle.count += 1
         self.id = Vehicle.count
         self.alias = alias if alias else self.id
-        self.origin = OriginNode(origin_id, self, point=origin_point)
-        self.destination = (
+        self.origin_node = OriginNode(origin_id, self, point=origin_point)
+        self.destination_node = (
             DestinationNode(destination_id, self, point=destination_point)
-            if destination_id
+            if destination_id is not None
             else None
         )
         self.capacity = capacity
         self.origin_tw = TimeWindow(origin_earliest_time, origin_latest_time)
         self.destination_tw = TimeWindow(destination_earliest_time, destination_latest_time)
-        self.origin.arrival = origin_earliest_time
-        self.route = Route(self.origin)
+        self.origin_node.arrival = origin_earliest_time
+        self.route = Route(self.origin_node)
         self.alias = (alias if alias else "V"+str(self.id))
         self.passengers = deque(maxlen=self.capacity)
         self.requests = list()
 
+    @staticmethod
+    def cleanup():
+        Vehicle.count = 0
+        
     @property
     def load(self):
         return len(self.passengers)
