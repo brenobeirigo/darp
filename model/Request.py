@@ -4,14 +4,18 @@ import math
 
 class Request:
     
-    n_request = 0
+    count = 0
     def __str__(self) -> str:
         return (
-            f"{self.alias}[{self.load}, ⧖{self.pickup_delay}/{self.dropoff_delay}]"
-            f" ({self.pickup_node}"
-            f" → {self.dropoff_node})"
+            f"{self.alias:>2}[{self.load}, ⧖{self.pickup_delay}/{self.dropoff_delay}]"
+            f" {self.pickup_node}"
+            f" → {self.dropoff_node}"
         )
     
+    @staticmethod
+    def cleanup():
+        Request.count = 0
+        
     def __repr__(self) -> str:
         return self.__str__()
     
@@ -32,8 +36,8 @@ class Request:
         alias=None):
 
 
-        Request.n_request += 1
-        self.id = Request.n_request
+        Request.count += 1
+        self.id = Request.count
         self.max_ride_time = max_ride_time        
         self.load = load
 
