@@ -14,7 +14,7 @@ class Node:
         self.departure = None
 
     def __str__(self) -> str:
-        return self.alias
+        return f"{self.alias:>3}"
     
     def __repr__(self) -> str: 
         return self.alias
@@ -70,6 +70,9 @@ class OriginNode(Node):
     @property
     def service_delay(self):
         return 0
+    
+    def __str__(self) -> str:
+        return super().__str__() + str(self.tw)
     
 class DestinationNode(Node):
     
