@@ -1,3 +1,5 @@
+from shapely.geometry import Point
+
 class Node:
     
     count = 0
@@ -7,7 +9,7 @@ class Node:
         self.id = Node.count
         self.alias = (alias if alias else self.id)
         self.pos = pos
-        self.point = point
+        self.point = (Point(point) if point is not None else None)
         self.arrival = None
         self.departure = None
 
@@ -17,6 +19,10 @@ class Node:
     def __repr__(self) -> str: 
         return self.alias
 
+    @staticmethod
+    def cleanup():
+        Node.count = 0
+    
 class PickupNode(Node):
     
     def __init__(self, pos, request, point=None):
