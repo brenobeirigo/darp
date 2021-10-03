@@ -2,7 +2,6 @@
 from model.Route import Route
 from model.Request import Request
 from model.Vehicle import Vehicle
-import math
 import pytest
 
 dist_matrix = {
