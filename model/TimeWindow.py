@@ -4,4 +4,4 @@ class TimeWindow:
         self.latest = latest
     
     def __str__(self) -> str:
-        return f"<{self.earliest},{self.latest}>"
+        return f"({self.earliest:<4}, {self.latest:<4})"
