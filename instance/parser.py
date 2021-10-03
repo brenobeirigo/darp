@@ -2,13 +2,12 @@ from pprint import pprint
 from model.Request import Request
 from model.Vehicle import Vehicle
 from model.Node import Node
-from shapely.geometry import Point
 import numpy as np
 import itertools
 
 
 PARSER_TYPE_CORDEAU = "cordeau_2006"
-
+PARSER_TYPE_ROPKE = "ropke_2007"
 
 class Instance:
     def __init__(
@@ -81,8 +80,8 @@ def parse_request_line(pickup_node_line, dropoff_node_line, max_ride_time):
         dropoff_latest,
     ) = parse_node_line(dropoff_node_line)
 
-    pickup_point = Point(pickup_x, pickup_y)
-    dropoff_point = Point(dropoff_x, dropoff_y)
+    pickup_point = (pickup_x, pickup_y)
+    dropoff_point = (dropoff_x, dropoff_y)
 
     return Request(
         pickup_id,
@@ -124,7 +123,7 @@ def parse_vehicle(origin_line, destination_line, vehicle_capacity):
         o_latest,
     ) = parse_node_line(origin_line)
 
-    o_point = Point(o_x, o_y)
+    o_point = (o_x, o_y)
 
     (
         d_id,
@@ -136,7 +135,7 @@ def parse_vehicle(origin_line, destination_line, vehicle_capacity):
         d_latest,
     ) = parse_node_line(destination_line)
 
-    d_point = Point(d_x, d_y)
+    d_point = (d_x, d_y)
 
     return Vehicle(
         o_id,
@@ -202,6 +201,33 @@ def cordeau_parser(instance_path):
         dist_matrix = parse_dist_matrix_from_node_points(nodes)
 
         return vehicles, requests, nodes, dist_matrix, config_dict
+    
+def ropke_parser(instance_path):
+
+    with open(instance_path, "r") as file:
+        lines = file.readlines()
+
+        config_dict = get_config_dict(lines[0])
+
+        o_depot = lines[1]
+        d_depot = lines[1]
+        request_lines = lines[2:]
+
+        vehicles = [
+            parse_vehicle(o_depot, d_depot, config_dict["vehicle_capacity"])
+            for _ in range(config_dict["n_vehicles"])
+        ]
+
+
+        requests = parse_request_lines(
+            request_lines, config_dict["maximum_ride_time_min"]
+        )
+
+        nodes = get_node_list(requests, vehicles)
+
+        dist_matrix = parse_dist_matrix_from_node_points(nodes)
+
+        return vehicles, requests, nodes, dist_matrix, config_dict
 
 
 def get_config_dict(config_line):
@@ -225,8 +251,7 @@ def get_config_dict(config_line):
     return config_dict
 
 
-parsers = {PARSER_TYPE_CORDEAU: cordeau_parser}
-
+parsers = {PARSER_TYPE_CORDEAU: cordeau_parser, PARSER_TYPE_ROPKE: ropke_parser}
 
 def get_instance_from_filepath(
     instance_filepath, instance_parser=PARSER_TYPE_CORDEAU
