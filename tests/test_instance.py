@@ -1,5 +1,8 @@
 from instance import parser
 from testfixtures import TempDirectory
+from model.Vehicle import Vehicle
+from model.Request import Request
+
 import os
 
 def test_cordeau_parse():
@@ -24,6 +27,7 @@ def test_cordeau_parse():
     )
 
 def test_cordeau_parse_request():
+    Request.cleanup()
     pickup_node_line = "1  -1.198  -5.164   3   1    0 1440"
     dropoff_node_line = "17   6.687   6.731   4  -1  402  417"
     max_ride_time = 30
@@ -48,6 +52,7 @@ def test_cordeau_parse_request():
     )
     
 def test_cordeau_parse_vehicle():
+    Vehicle.cleanup()
     origin_line = "0   0.000   0.000   0   0    0  480"
     destination_line = "33   0.000   0.000   0   0    0  480"
     vehicle_capacity = 3
