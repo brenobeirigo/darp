@@ -94,8 +94,8 @@ class NodeSolution:
     def __repr__(self):
         return (
             f"{self.id} ("
-            "w: {self.w:6.2f}; "
-            "b: {self.b:6.2f}; "
-            "t: {self.t:6.2f}; "
-            "q: {self.q:6.2f})"
+            f"w: {self.w:6.2f}; "
+            f"b: {self.b:6.2f}; "
+            f"t: {self.t:6.2f}; "
+            f"q: {self.q:6.2f})"
         )
