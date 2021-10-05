@@ -253,7 +253,7 @@ def get_config_dict(config_line):
 
 parsers = {PARSER_TYPE_CORDEAU: cordeau_parser, PARSER_TYPE_ROPKE: ropke_parser}
 
-def get_instance_from_filepath(
+def parse_instance_from_filepath(
     instance_filepath, instance_parser=PARSER_TYPE_CORDEAU
 ):
     vehicles, requests, nodes, dist_matrix, config_dict = parsers[
