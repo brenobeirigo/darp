@@ -1,6 +1,7 @@
 # https://cdv.dei.uc.pt/wp-content/uploads/2014/03/ptmc02a.pdf
 
-from instance import parser
+from instance import parser as pi
+from solution import parser as ps
 from pprint import pprint
 import os
 
@@ -13,11 +14,13 @@ import os
 
 
 
-'''
+
 ## Loading the whole dataset
 
 
-instance_folder = "instance/data/darp_ropke_2007/branch-and-cut/"
+'''
+instance_folder = "/home/bbeirigo/study/metaheuristics/darp/instance/data/darp_ropke_2007/branch-and-cut/"
+
 
 files = os.listdir(instance_folder)
 
@@ -27,17 +30,44 @@ for filename in files:
     print("#############", filename)
     instance_filepath = os.path.join(instance_folder, filename)
 
-    instance = parser.get_instance_from_filepath(
-        instance_filepath, instance_parser=parser.PARSER_TYPE_CORDEAU)
+    instance = pi.parse_instance_from_filepath(
+        instance_filepath, instance_parser=pi.PARSER_TYPE_CORDEAU)
 
     print(instance)
-
 '''
-instance_filepath = "instance/data/darp_ropke_2007/tabu/pr02"
-instance = parser.get_instance_from_filepath(
-        instance_filepath,
-        instance_parser=parser.PARSER_TYPE_CORDEAU)
 
+root = "/home/bbeirigo/study/metaheuristics/darp"
+input_filepath = "instance/data/darp_ropke_2007/tabu/pr02"
+output_filepath = "instance/data/darpsrp_parragh_2015/DARP/pr02_result.txt"
+
+instance = pi.parse_instance_from_filepath(
+        os.path.join(root, input_filepath),
+        instance_parser=pi.PARSER_TYPE_ROPKE)
+
+print(instance.config_dict)
+
+solution = ps.parse_solution_from_filepath(os.path.join(root, output_filepath))
+
+print("### ROUTES:")
+total_cost = 0
+total_duration = 0
+total_transit = 0
+for r in solution.vehicle_routes:
+    print(r)
+    total_transit += r.get_total_transit(instance)
+    total_duration += r.get_total_duration()
+    total_cost += r.get_total_cost(instance.dist_matrix)
+
+assert round(total_cost,2) == round(solution.cost,2)
+assert round(total_duration, 2) ==round(solution.total_duration,2), f'{total_duration} != {solution.total_duration}' 
+assert round(total_transit, 2) == round(solution.total_transit,2), f'{total_transit} != {solution.total_transit}' 
+
+print(r.is_route_feasible(instance))
+print("TOTAL COST:", total_cost)
+print("TOTAL TRANSIT:", total_transit)
+print("TOTAL DURATION:", total_duration)
+# TODO total waiting
+# TODO minimal representation [[node_id, arrival]]
 # 0 D:	455.309 Q:	3 W:	7.1095 T:	53.0065	0 
 # 0 (w: 0; b: 85.2408; t: 0; q: 0)
 # 44 (w: 0; b: 89; t: 0; q: 1)
@@ -64,6 +94,8 @@ instance = parser.get_instance_from_filepath(
 # 85 (w: 0; b: 528.304; t: 5.41463; q: 0)
 # 0 (w: 0; b: 540.55; t: 0; q: 0)
 
+'''
+
 route = [44,20,92,38,27,68,86,30,75,15,78,1,25,63,4,52,49,26,73,74,37,85]
 
 print(instance)
@@ -79,3 +111,62 @@ v0.route.append_node(v0.destination_node)
 
 print("FEASIBLE:", v0.route.is_feasible(instance.dist_matrix))
 print(v0.route)
+
+
+'''
+
+"""
+        
+for v_sol in vehicle_routes:
+    
+    print("\n" + str(v_sol))
+    
+    
+    print("All nodes:")
+
+    for n in v_sol.visits:
+        
+        node = instance.node_id_dict[n.id]
+        node.arrival = n.b
+        
+        b += n.b-node.tw.earliest
+        
+        departure = node.arrival + node.service_delay
+        B_i = max(node.arrival, node.tw.earliest)
+        v_W = B_i - node.arrival
+        vehicle_waiting += v_W
+        print(n, node, f"{B_i:6.2f}", f"{v_W:6.2f}", f"{node.arrival:6.2f}", f"{node.tw.earliest:6.2f}")
+    
+    print("Dropoffs:")
+    for n in v_sol.visits:    
+        node = instance.node_id_dict[n.id]
+        
+        if type(node) == DropoffNode:
+        
+            o = node.request.pickup_node
+            o_D = o.arrival + node.service_delay
+            L_n = n.b - o_D
+            
+            shortest_dist = instance.dist_matrix[o.pos][node.pos]
+            
+            transit += L_n
+            print(o, node, L_n, shortest_dist, transit)
+    
+    print("from to")
+    for o, d in zip(v_sol.visits[:-1], v_sol.visits[1:]):
+        n_o = instance.node_id_dict[o.id]
+        
+        
+        
+        n_d = instance.node_id_dict[d.id]
+        delay = d.b - n_d.tw.earliest
+        dist = instance.dist_matrix[n_o.pos][n_d.pos]
+        cost+=dist
+        
+        print(n_o, n_o.service_delay, o, " - delay:", o.b-n_o.tw.earliest, "   →   ", n_d, n_d.service_delay, d, " - delay:", d.b-n_d.tw.earliest, " - DIST: ", dist, delay)
+print("cost:", cost)
+print("b:", b)
+print("total waiting time:", vehicle_waiting)
+print(s)
+print("\n".join(map(str, s.vehicle_routes)))
+"""
