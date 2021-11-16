@@ -84,7 +84,7 @@ def test_cordeau_parser():
     d.write(filename, content_instance)
 
     filepath = os.path.join(d.path, filename)
-    instance = parser.get_instance_from_filepath(
+    instance = parser.parse_instance_from_filepath(
         filepath, instance_parser=parser.PARSER_TYPE_CORDEAU
     )
         
