@@ -6,7 +6,10 @@ from solution.Solution import Solution, NodeSolution, VehicleSolution
 from pprint import pprint
 
 from instance import parser
-from solution.Solution import NODE_PATTERN_PARRAGH, VEHICLE_ROUTE_PATTERN_PARRAGH
+from solution.Solution import (
+    NODE_PATTERN_PARRAGH,
+    VEHICLE_ROUTE_PATTERN_PARRAGH,
+)
 
 
 def check_input_output(instance, solution):
@@ -63,8 +66,9 @@ def get_node_solution_list_from_route_str(str):
         )
     return node_sol
 
+
 def parse_solution_from_filepath(solution_filepath):
-    
+
     output = get_solution_cleaned_lines_from_filepath(solution_filepath)
 
     # Get instance input name (e.g., outputfile for pr02.txt)
@@ -90,19 +94,21 @@ def parse_solution_from_filepath(solution_filepath):
         avg_waiting=avg_waiting,
         vehicle_solutions=vehicle_solutions,
     )
-    
+
     return s
+
 
 def get_solution_cleaned_lines_from_filepath(solution_filepath):
     with open(solution_filepath, "r") as file:
-        
+
         lines = map(str.strip, file.readlines())
-        
+
         pprint(lines)
         # Clean \n's lines and trailing \n's spaces
-        output = [line for line in lines if line != '']
-        pprint(output)    
+        output = [line for line in lines if line != ""]
+        pprint(output)
     return output
+
 
 def get_list_of_vehicle_solutions(output):
     # Lines for vehicle summary stats and routes. E.g.:
@@ -130,7 +136,9 @@ def get_solution_overall_results(output):
     vehicle_waiting, avg_waiting = map(
         float, re.findall(r"[\d.]+", waiting_info)
     )
-    total_transit, avg_transit = map(float, re.findall(r"[\d.]+", transit_info))
+    total_transit, avg_transit = map(
+        float, re.findall(r"[\d.]+", transit_info)
+    )
     return (
         cost,
         total_duration,
@@ -139,71 +147,3 @@ def get_solution_overall_results(output):
         avg_transit,
         avg_waiting,
     )
-
-
-input_filepath = "instance/data/darp_ropke_2007/tabu/pr02"
-solution_filepath = "instance/data/darpsrp_parragh_2015/DARP/pr02_result.txt"
-
-instance = parser.get_instance_from_filepath(
-    input_filepath, instance_parser=parser.PARSER_TYPE_ROPKE
-)
-
-pprint(str(instance))
-solution = parse_solution_from_filepath(solution_filepath)
-pprint(solution)
-
-"""
-        
-for v_sol in vehicle_routes:
-    
-    print("\n" + str(v_sol))
-    
-    
-    print("All nodes:")
-
-    for n in v_sol.visits:
-        
-        node = instance.node_id_dict[n.id]
-        node.arrival = n.b
-        
-        b += n.b-node.tw.earliest
-        
-        departure = node.arrival + node.service_delay
-        B_i = max(node.arrival, node.tw.earliest)
-        v_W = B_i - node.arrival
-        vehicle_waiting += v_W
-        print(n, node, f"{B_i:6.2f}", f"{v_W:6.2f}", f"{node.arrival:6.2f}", f"{node.tw.earliest:6.2f}")
-    
-    print("Dropoffs:")
-    for n in v_sol.visits:    
-        node = instance.node_id_dict[n.id]
-        
-        if type(node) == DropoffNode:
-        
-            o = node.request.pickup_node
-            o_D = o.arrival + node.service_delay
-            L_n = n.b - o_D
-            
-            shortest_dist = instance.dist_matrix[o.pos][node.pos]
-            
-            transit += L_n
-            print(o, node, L_n, shortest_dist, transit)
-    
-    print("from to")
-    for o, d in zip(v_sol.visits[:-1], v_sol.visits[1:]):
-        n_o = instance.node_id_dict[o.id]
-        
-        
-        
-        n_d = instance.node_id_dict[d.id]
-        delay = d.b - n_d.tw.earliest
-        dist = instance.dist_matrix[n_o.pos][n_d.pos]
-        cost+=dist
-        
-        print(n_o, n_o.service_delay, o, " - delay:", o.b-n_o.tw.earliest, "   →   ", n_d, n_d.service_delay, d, " - delay:", d.b-n_d.tw.earliest, " - DIST: ", dist, delay)
-print("cost:", cost)
-print("b:", b)
-print("total waiting time:", vehicle_waiting)
-print(s)
-print("\n".join(map(str, s.vehicle_routes)))
-"""
