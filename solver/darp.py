@@ -6,11 +6,10 @@ from pprint import pprint
 
 # from pyomo.environ import ConcreteModel, Var, PositiveReals, Objective, Constraint, maximize, SolverFactory
 
-BIGM = 1000
-BIGMQ = 1000
 TOTAL_DISTANCE_TRAVELED = "total_dist"
 TOTAL_WAITING = "total_waiting"
 class Darp:
+    
     def __init__(self, N, P, D, K, Q, L, el, d, q, dist_matrix):
         # data = create_data_model()
         self.N = N # Set of all nodes in graph
@@ -20,18 +19,53 @@ class Darp:
         self.K = K # Set of vehicles
         self.Q = Q # Capacity of a vehicle
         self.L = L # Max. ride time of a request
-        self.el = el # node i time window (earliest, latest)
+        
+        # Dictionary of node earliest times
+        self.e = {node_id:earliest_latest[0]
+                  for node_id, earliest_latest in el.items()}
+        
+        # Dictionary of node latest times
+        self.l = {node_id:earliest_latest[1]
+                  for node_id, earliest_latest in el.items()}
+        
+        pprint(self.e)
+        pprint(self.l)
+
+
         self.d = d # service duration at node i
         self.q = q # amount loaded onto vehicle at node i (q_i = q_{n+i})
         self.dist_matrix = dist_matrix
         
+        # ARC SET
+        
+        origin_pickup_arcs = set([(self.N[0],j) for j in self.P])
+        
+        pd_dp_arcs = set([
+            (i,j)
+            for i in self.P + self.D
+            for j in self.P + self.D
+            # No loops
+            if i != j
+            # Delivery node of a request is visited after pickup node
+            and (self.N.index(i) != self.n + self.N.index(j))])
+        
+        
+        delivery_terminal_arcs = set([(i, self.N[2*self.n +1]) for i in self.D])
+        
+        self.A = origin_pickup_arcs.union(pd_dp_arcs, delivery_terminal_arcs)
+                
+        pprint(sorted(self.A, key=lambda x:x[0]))
+        
+        
         self.N_inbound = defaultdict(set)
         self.N_outbound = defaultdict(set)
+        
         for i in self.N:
             for j in self.N:
                 if dist_matrix[i][j] >=0:
                     self.N_outbound[i].add(j)
                     self.N_inbound[j].add(i)
+                    
 
         pprint(self.N_outbound)
         pprint(self.N_inbound)
@@ -40,8 +74,8 @@ class Darp:
         
         # Create the mip solver with the SCIP backend.
         self.solver = pywraplp.Solver.CreateSolver("SCIP")
-        infinity = self.solver.infinity()
-        print("inf:", infinity)
+        self.INFINITY = self.solver.infinity()
+        print("inf:", self.INFINITY)
         
         # 1 if the kth vehicles goes straight from node i to node j
         self.var_x = {}
@@ -57,10 +91,12 @@ class Darp:
         
         # Variable declaration
         self.declare_decision_vars()
-        self.declare_arrival_vars(infinity)
+        self.declare_arrival_vars()
         self.declare_load_vars()
         self.declare_ridetime_vars()
 
+        self.set_objective_function()
+        
         # Routing constraints
         self.constr_every_request_is_served_exactly_once()
         self.constr_same_vehicle_services_pickup_and_delivery()
@@ -75,11 +111,11 @@ class Darp:
         self.constr_ensure_feasible_ride_times()
         
         # Load constraints
-        self.constr_vehicle_starts_empty()
-        self.constr_vehicle_ends_empty()
         self.constr_ensure_feasible_vehicle_loads()
         self.constr_vehicle_loads_are_lower_than_vehicles_max_capacities()
-        self.set_objective_function()
+        self.constr_vehicle_starts_empty()
+        self.constr_vehicle_ends_empty()
+        
         self.solve()
 
     def declare_decision_vars(self):
@@ -88,33 +124,37 @@ class Darp:
             for i in self.N:
                 self.var_x[k][i] = {}
                 for j in self.N_outbound[i]:
+                    label_var_x = f"x[{k},{i},{j}]"
                     self.var_x[k][i][j] = self.solver.IntVar(
-                        0, 1, f"x[{k},{i},{j}]"
+                        0, 1, label_var_x
                     )
 
-    def declare_arrival_vars(self, infinity):
+    def declare_arrival_vars(self):
         for k in self.K:
             self.var_B[k] = {}
             for i in self.N:
                 print( f"B[{k},{i}]")
+                label_var_B = f"B[{k},{i}]"
                 self.var_B[k][i] = self.solver.NumVar(
-                    0, infinity, f"B[{k},{i}]"
+                    0, self.INFINITY, label_var_B
                 )
 
     def declare_load_vars(self):
         for k in self.K:
             self.var_Q[k] = {}
             for i in self.N:
+                label_var_Q = f"Q[{k},{i}]"
                 self.var_Q[k][i] = self.solver.IntVar(
-                    0, self.Q[k], f"Q[{k},{i}]"
+                    0, self.Q[k], label_var_Q
                 )
 
     def declare_ridetime_vars(self):
         for k in self.K:
             self.var_L[k] = {}
             for i in self.P:
+                label_var_L = f"L[{k},{i}]"
                 self.var_L[k][i] = self.solver.NumVar(
-                    0, self.L[i], f"L[{k},{i}]"
+                    0, self.L[i], label_var_L
                 )
 
     def plot(self):
@@ -162,16 +202,27 @@ class Darp:
                     )
             
             
-            print("Flow:")    
-            for k in self.K:
-                for i in self.N:
-                    for j in self.N_outbound[i]:
-                        if self.var_x[k][i][j].solution_value() > 0:
-                            print(
-                                self.var_x[k][i][j].name(),
-                                " = ",
-                                self.var_x[k][i][j].solution_value(),
-                            )
+
+            print("Flow variables:")
+            
+            dict_route_vehicle = dict()  
+            dict_vehicle_arcs = self.get_dict_vehicle_routes()
+            
+            for k, from_to in dict_vehicle_arcs.items():
+                node_id = self.N[0]
+                ordered_list = list()
+                while True:
+                    ordered_list.append(node_id)
+                    next_id = from_to[node_id]
+                    node_id = next_id
+                    if node_id not in from_to.keys():
+                        ordered_list.append(node_id)
+                        break
+                    
+                dict_route_vehicle[k] = ordered_list
+            
+            print("Routes:")
+            pprint(dict_route_vehicle)           
 
             print(
                 "Problem solved in %f milliseconds" % self.solver.wall_time()
@@ -183,6 +234,24 @@ class Darp:
             )
         else:
             print("The problem does not have an optimal solution.")
+
+    def get_dict_vehicle_routes(self):
+        
+        dict_vehicle_arcs = defaultdict(lambda: defaultdict(str))
+        
+        for k in self.K:
+            for i in self.N:
+                for j in self.N_outbound[i]:
+                    if self.var_x[k][i][j].solution_value() > 0.9:
+                        
+                        dict_vehicle_arcs[k][i] = j
+                        print(
+                            self.var_x[k][i][j].name(),
+                            " = ",
+                            self.var_x[k][i][j].solution_value(),
+                        )
+                        
+        return dict_vehicle_arcs
 
     def set_objective_function(self, obj=TOTAL_DISTANCE_TRAVELED):
         
@@ -197,7 +266,7 @@ class Darp:
         
         else:
             obj_expr = [
-                self.var_L[k][i] + (self.var_B[k][i] - self.el[i][0])
+                self.var_L[k][i] + (self.var_B[k][i] - self.e[i])
                 for k in self.K
                 for i in self.P
             ]
@@ -209,7 +278,10 @@ class Darp:
             constr_label = f"request_{i}_is_served_exactly_once"
             print(constr_label)
             self.solver.Add(
-                sum(self.var_x[k][i][j] for k in self.K for j in self.N_outbound[i]) == 1,
+                sum(
+                    self.var_x[k][i][j]
+                    for k in self.K
+                    for j in self.N_outbound[i]) == 1,
                 constr_label,
             )
 
@@ -220,8 +292,10 @@ class Darp:
                 constr_label = f"vehicle_{k}_services_pickup={i}_and_delivery={dest_i}"
                 print(constr_label)
                 self.solver.Add(
-                    sum(self.var_x[k][i][j] for j in self.N_outbound[i])
-                    - sum(self.var_x[k][dest_i][j] for j in self.N_outbound[dest_i])
+                    sum(self.var_x[k][i][j]
+                        for j in self.N_outbound[i])
+                    - sum(self.var_x[k][dest_i][j]
+                          for j in self.N_outbound[dest_i])
                     == 0,
                     constr_label,
                 )
@@ -231,7 +305,8 @@ class Darp:
         for k in self.K:
             constr_label = f"vehicle_{k}_leaves_start_terminal_{start_terminal}"
             self.solver.Add(
-                sum(self.var_x[k][start_terminal][j] for j in self.N_outbound[start_terminal]) == 1,
+                sum(self.var_x[k][start_terminal][j]
+                    for j in self.N_outbound[start_terminal]) == 1,
                 constr_label,
             )
 
@@ -249,12 +324,13 @@ class Darp:
                 )
 
     def constr_every_vehicle_enters_the_end_terminal(self):
-        end_terminal = self.N[-1]
+        end_terminal = self.N[2*self.n + 1]
         for k in self.K:
             constr_label = f"vehicle_{k}_enters_the_end_terminal_{end_terminal}"
             print(constr_label)
             self.solver.Add(
-                sum(self.var_x[k][j][end_terminal] for j in self.N_inbound[end_terminal]) == 1,
+                sum(self.var_x[k][j][end_terminal]
+                    for j in self.N_inbound[end_terminal]) == 1,
                 constr_label,
             )
 
@@ -268,13 +344,25 @@ class Darp:
                         f"_after_arrival_at_{i}_plus_"
                         f"service={self.d[i]}_and_t={self.dist_matrix[i][j]})"
                     )
+                    
+                    BIGM_ijk = max([0,
+                                 self.l[i]
+                                 + self.dist_matrix[i][j]
+                                 + self.d[i]
+                                 - self.e[j]])
+                    
+                    print(BIGM_ijk, self.l[i]
+                                 + self.dist_matrix[i][j]
+                                 + self.d[i]
+                                 - self.e[j])
+                    
                     print(constr_label)
                     self.solver.Add(
                         self.var_B[k][j]
                         >= self.var_B[k][i]
                         + self.d[i]
                         + self.dist_matrix[i][j]
-                        - BIGM * (1 - self.var_x[k][i][j]),
+                        - BIGM_ijk * (1 - self.var_x[k][i][j]),
                         constr_label,
                     )
 
@@ -282,28 +370,26 @@ class Darp:
         for k in self.K:
             for i in self.N:
                 
-                earliest_arrival, latest_arrival = self.el[i]
-                
                 constr_label_earliest = (
                     f"vehicle_{k}_arrives_at_{i}_"
-                    f"after_earliest={earliest_arrival}")
+                    f"after_earliest={self.e[i]}")
                 
                 
                 print(constr_label_earliest)
                 
                 self.solver.Add(
-                    self.var_B[k][i] >= earliest_arrival,
+                    self.var_B[k][i] >= self.e[i],
                     constr_label_earliest
                 )
                 
                 constr_label_latest = (
                     f"vehicle_{k}_arrives_at_{i}_"
-                    f"before_latest={latest_arrival}")
+                    f"before_latest={self.l[i]}")
                 
                 print(constr_label_latest)
                 
                 self.solver.Add(
-                    self.var_B[k][i] <= latest_arrival,
+                    self.var_B[k][i] <= self.l[i],
                     constr_label_latest   
                 )
 
@@ -330,10 +416,24 @@ class Darp:
 
     def constr_ride_times_are_lower_than_request_thresholds(self):
         for k in self.K:
-            for i in self.P:
+            for idx, i in enumerate(self.P):
+                
+                dest_i = self.N[self.n + idx + 1]
                 
                 constr_label = (
-                    f"{i}_travels_at_most_{[self.L[i]]}_"
+                    f"trip_from_{i}_to_{dest_i}_inside_vehicle_{k}_"
+                    f"lasts_at_least_{self.dist_matrix[i][dest_i]}"
+                )
+                
+                print(constr_label)
+                
+                self.solver.Add(
+                    self.var_L[k][i] >= self.dist_matrix[i][dest_i],
+                    constr_label    
+                )
+                
+                constr_label = (
+                    f"{i}_travels_at_most_{self.L[i]}_"
                     f"inside_vehicle_{k}"
                 )
                 
@@ -344,7 +444,6 @@ class Darp:
                     constr_label    
                 )
 
-    # TODO debug BIGMQ or test uncapacitated version
     def constr_vehicle_starts_empty(self):
         start_terminal = self.N[0]
         for k in self.K:
@@ -356,8 +455,9 @@ class Darp:
                 == 0,
                 constr_label,
             )
+
     def constr_vehicle_ends_empty(self):
-        end_terminal = self.N[-1]    
+        end_terminal = self.N[2*self.n + 1]    
         for k in self.K:
             constr_label = f"{k}_ends_empty_at_{end_terminal}"
             print(constr_label)
@@ -380,13 +480,14 @@ class Darp:
                     )
                     print(constr_label)
                     
-                    wijk = min([2*self.Q[k], 2*self.Q[k]+ self.q[j]])
-                    print(wijk, self.q[j])
+                    BIGW_ijk = min([2*self.Q[k], 2*self.Q[k]+ self.q[j]])
+                    print(BIGW_ijk, self.q[j])
+                    
                     self.solver.Add(
                         self.var_Q[k][j]
                         >= self.var_Q[k][i]
                         + self.q[j]
-                        - wijk * (1 - self.var_x[k][i][j]),
+                        - BIGW_ijk * (1 - self.var_x[k][i][j]),
                         constr_label,
                     )
 
@@ -394,17 +495,32 @@ class Darp:
         for k in self.K:
             for i in self.N:
                 
-                constr_label = (
+                constr_label_lower = (
                     f"load_of_vehicle_{k}_at_{i}_"
-                    f"is_lower_than_max_capacity_{self.Q[k]}"
+                    f"is_greater_than_max_"
+                    f"(0_or_"
+                    f"{self.q[i]})"
                 )
                 
-                print(constr_label)
+                print(constr_label_lower)
                 
                 self.solver.Add(
-                    self.var_Q[k][i] <= self.Q[k],
-                    constr_label
+                    self.var_Q[k][i] >= max(0, self.q[i]),
+                    constr_label_lower
                 )
-
-    def constr_variables_are_binary(self):
-        pass
+                
+                constr_label_upper = (
+                    f"load_of_vehicle_{k}_at_{i}_"
+                    f"is_lower_than_min_"
+                    f"({self.Q[k]}_or_"
+                    f"{self.Q[k]}_plus_{self.q[i]})"
+                )
+                
+                print(constr_label_upper)
+                
+                self.solver.Add(
+                    self.var_Q[k][i] <= min(
+                        self.Q[k],
+                        self.Q[k] + self.q[i]),
+                    constr_label_upper
+                )
