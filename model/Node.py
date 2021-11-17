@@ -13,6 +13,18 @@ class Node:
         self.arrival = None
         self.departure = None
 
+    @property
+    def x(self):
+        return self.point.x
+    
+    @property
+    def xy_coord(self):
+        return self.point.x, self.point.y
+    
+    @property
+    def y(self):
+        return self.point.y
+
     def __str__(self) -> str:
         return f"{self.alias:>3}"
     
