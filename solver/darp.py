@@ -322,7 +322,7 @@ class Darp:
         if obj == TOTAL_DISTANCE_TRAVELED:
 
             obj_expr = [
-                self.dist_matrix[i][j] * self.var_x[k][i][j]
+                self.dist(i,j) * self.var_x[k][i][j]
                 for k in self.K
                 for i in self.N
                 for j in self.N_outbound[i]
@@ -523,11 +523,11 @@ class Darp:
 
                 constr_label_lower = (
                     f"trip_from_{i}_to_{dest_i}_inside_vehicle_{k}_"
-                    f"lasts_at_least_{round(self.dist_matrix[i][dest_i],1)}"
+                    f"lasts_at_least_{round(self.dist(i,dest_i),1)}"
                 )
 
                 self.solver.Add(
-                    self.var_L[k][i] >= self.dist_matrix[i][dest_i],
+                    self.var_L[k][i] >= self.dist(i,dest_i),
                     constr_label_lower)
 
                 logger.info(constr_label_lower)
@@ -570,8 +570,7 @@ class Darp:
 
     def constr_ensure_feasible_vehicle_loads(self):
         for k in self.K:
-            for i in self.N:
-                for j in self.N_outbound[i]:
+            for i, j in self.A:
 
                     BIGW_ijk = min([2 * self.Q[k],
                                     2 * self.Q[k] + self.q[j]])
