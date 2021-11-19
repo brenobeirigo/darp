@@ -5,13 +5,13 @@ class Node:
     count = 0
     
     def __init__(self, pos, point=None, alias=None):
-        Node.count += 1 
         self.id = Node.count
         self.alias = (alias if alias else self.id)
         self.pos = pos
         self.point = (Point(point) if point is not None else None)
         self.arrival = None
         self.departure = None
+        Node.count += 1
 
     @property
     def x(self):
@@ -46,6 +46,16 @@ class PickupNode(Node):
         return self.request.pickup_tw
     
     @property
+    def load(self):
+        return self.request.load
+    
+    @property
+    def el(self):
+        return (
+            self.tw.earliest,
+            self.tw.latest)
+    
+    @property
     def service_delay(self):
         return self.request.pickup_delay
     
@@ -63,6 +73,16 @@ class DropoffNode(Node):
         return self.request.dropoff_tw
     
     @property
+    def load(self):
+        return -self.request.load
+    
+    @property
+    def el(self):
+        return (
+            self.tw.earliest,
+            self.tw.latest)
+    
+    @property
     def service_delay(self):
         return self.request.dropoff_delay
     
@@ -78,6 +98,17 @@ class OriginNode(Node):
     @property
     def tw(self):
         return self.vehicle.origin_tw
+    
+    @property
+    def load(self):
+        return 0
+    
+    @property
+    def el(self):
+        return (
+            self.tw.earliest,
+            self.tw.latest)
+    
 
     @property
     def service_delay(self):
@@ -95,6 +126,16 @@ class DestinationNode(Node):
     @property
     def tw(self):
         return self.vehicle.destination_tw
+    
+    @property
+    def load(self):
+        return 0
+    
+    @property
+    def el(self):
+        return (
+            self.tw.earliest,
+            self.tw.latest)
     
     def __str__(self) -> str:
         return super().__str__() + str(self.tw)
