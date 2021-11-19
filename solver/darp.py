@@ -165,11 +165,14 @@ class Darp:
         self.declare_ridetime_vars()
 
     def declare_decision_vars(self):
+        self.var_x = dict()
         for k in self.K:
-            self.var_x[k] = {}
+            self.var_x[k] = dict()
             for i in self.N:
-                self.var_x[k][i] = {}
-                for j in self.N_outbound[i]:
+                for j in self.N:
+                    if (i,j) in self.A:
+                        if i not in self.var_x[k]:
+                            self.var_x[k][i] = dict()
                     label_var_x = f"x[{k},{i},{j}]"
                     self.var_x[k][i][j] = self.solver.IntVar(0, 1, label_var_x)
 
@@ -444,9 +447,7 @@ class Darp:
 
     def constr_ensure_feasible_visit_times(self):
         for k in self.K:
-            for i in self.N:
-                for j in self.N_outbound[i]:
-
+            for i,j in self.A:
 
                     BIGM_ijk = max([0,
                                     self.l[i]
