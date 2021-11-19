@@ -1,13 +1,10 @@
 from collections import defaultdict
 from ortools.linear_solver import pywraplp
-import math
-import matplotlib.pyplot as plt
 from pprint import pprint
 
 import logging
-
-logger = logging.getLogger("darp.model")
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("darp")
 
 # from pyomo.environ import ConcreteModel, Var, PositiveReals, Objective, Constraint, maximize, SolverFactory
 
@@ -38,7 +35,14 @@ def get_arc_set(P, D, origin_depot, destination_depot):
 
     delivery_terminal_arcs = [(i, N[2 * n + 1]) for i in D]
 
-    return origin_pickup_arcs.union(set(pd_dp_arcs), set(delivery_terminal_arcs))
+    # Vehicles travel directly to end depot when they are not assign to
+    # users (equivalent to not leaving the depot)
+    loop_depot_arcs = [(N[0], N[2 * n + 1])]
+    
+    return origin_pickup_arcs.union(
+        set(pd_dp_arcs),
+        set(delivery_terminal_arcs),
+        set(loop_depot_arcs))
 
 
 class Darp:
@@ -55,7 +59,7 @@ class Darp:
         d,
         q,
         dist_matrix,
-        total_horizon,
+        total_horizon
     ):
         
         # Vehicle data
@@ -91,7 +95,7 @@ class Darp:
 
         for i in self.N:
             for j in self.N:
-                if dist_matrix[i][j] >= 0:
+                if (i,j) in self.A:
                     self.N_outbound[i].add(j)
                     self.N_inbound[j].add(i)
 
@@ -195,65 +199,88 @@ class Darp:
     def plot(self):
         pass
 
+    @property
+    def nvar_(self):
+        return self.solver.NumVariables()
+    
+    @property
+    def nconstr_(self):
+        return self.solver.NumConstraints()
+    
+    @property
+    def objvalue_(self):
+        return self.solver.Objective().Value()
+    
+    @property
+    def cputime_(self):
+        return self.solver.wall_time()
+    
+    @property
+    def numiterations_(self):
+        return self.solver.iterations()
+    
+    @property
+    def numnodes_(self):
+        return self.solver.nodes()
+    
     def stats(self):
-        print("Number of variables =", self.solver.NumVariables())
-        print("Variables = ", self.solver.variables())
-        print("Number of constraints = ", self.solver.NumConstraints())
-        # print("Constraints = ", list(map(str, self.solver.constraints())))
+        print(f"  Number of variables = {self.nvar_}")
+        print(f"Number of constraints = {self.nconstr_}")
+        print(   f"   Objective value = {self.objvalue_:.2f}")
+        # print(f"Constraints = {list(map(str, self.solver.constraints()))}")
+        # print(f"Variables = {self.solver.variables()}")
 
     def solve(self):
 
         status = self.solver.Solve()
 
         if status == pywraplp.Solver.OPTIMAL:
-            print("Objective value =", round(self.solver.Objective().Value()))
 
-            print("# Arrivals")
+            logger.info("# Arrivals")
             for k in self.K:
                 for i in self.N:
-                    print(
-                        self.var_B[k][i].name(),
-                        " = ",
-                        self.var_B[k][i].solution_value(),
+                    logger.info(
+                        f"{self.var_B[k][i].name():>20} = "
+                        f"{self.var_B[k][i].solution_value():>7.2f}"
                     )
 
-            print("# Loads")
+            logger.info("# Loads")
             for k in self.K:
                 for i in self.N:
 
-                    print(
-                        self.var_Q[k][i].name(),
-                        " = ",
-                        self.var_Q[k][i].solution_value(),
+                    logger.info(
+                        f"{self.var_Q[k][i].name():>20} = "
+                        f"{self.var_Q[k][i].solution_value():>7.0f}"
                     )
 
-            print(" # Ride times:")
+            logger.info(" # Ride times:")
             for k in self.K:
                 for i in self.P:
-                    print(
-                        self.var_L[k][i].name(),
-                        " = ",
-                        self.var_L[k][i].solution_value(),
+                    logger.info(
+                        f"{self.var_L[k][i].name():>20} = "
+                        f"{self.var_L[k][i].solution_value():>7.2f}"
                     )
 
-            print("# Flow variables:")
+            logger.info("# Flow variables:")
             flow_edges = self.get_flow_edges()
             for k,i,j in flow_edges:
-                print(
-                    self.var_x[k][i][j].name(),
-                    " = ",
-                    self.var_x[k][i][j].solution_value(),
+                logger.info(
+                    f"{self.var_x[k][i][j].name():>20} = "
+                    f"{self.var_x[k][i][j].solution_value():<7}"
                 )
 
 
-            print("# Routes:")
+            logger.info("# Routes:")
             dict_vehicle_routes = self.get_dict_route_vehicle(flow_edges)
-            pprint(dict_vehicle_routes)
+            logger.info(dict_vehicle_routes)
             
             print("# Problem solved in:")
-            print(f"\t- {self.solver.wall_time():.1f} milliseconds")
-            print(f"\t- {self.solver.iterations()} iterations")
-            print(f"\t- {self.solver.nodes()} branch-and-bound nodes")
+            print(f"\t- {self.cputime_:.1f} milliseconds")
+            print(f"\t- {self.numiterations_} iterations")
+            print(f"\t- {self.numnodes_} branch-and-bound nodes")
+
+            print(f"# Objective value = {self.objvalue_:.2f}")
+
         else:
             print("The problem does not have an optimal solution.")
 
@@ -430,8 +457,8 @@ class Darp:
                     constr_label = (
                         f"vehicle_{k}_arrives_at_{j}"
                         f"_after_arrival_at_{i}_plus_"
-                        f"service={self.d[i]}_and_t={self.dist_matrix[i][j]}_"
-                        f"BIGM_{BIGM_ijk}"
+                        f"service={self.d[i]}_and_t={round(self.dist_matrix[i][j],1)}_"
+                        f"BIGM_{round(BIGM_ijk,1)}"
                     )
                     
                     self.solver.Add(
@@ -496,7 +523,7 @@ class Darp:
 
                 constr_label_lower = (
                     f"trip_from_{i}_to_{dest_i}_inside_vehicle_{k}_"
-                    f"lasts_at_least_{self.dist_matrix[i][dest_i]}"
+                    f"lasts_at_least_{round(self.dist_matrix[i][dest_i],1)}"
                 )
 
                 self.solver.Add(
@@ -559,7 +586,7 @@ class Darp:
                         f"load_of_vehicle_{k}_"
                         "traveling_from_"
                         f"{i}_to_{j}_{increase_decrease_str}_"
-                        f"BIGW_{BIGW_ijk}"
+                        f"BIGW_{round(BIGW_ijk,1)}"
                     )
                     
                     logger.info(constr_label)
