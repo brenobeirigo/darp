@@ -35,8 +35,6 @@ class Request:
         max_ride_time=math.inf,
         alias=None):
 
-
-        Request.count += 1
         self.id = Request.count
         self.max_ride_time = max_ride_time        
         self.load = load
@@ -56,4 +54,6 @@ class Request:
         
         self.pickup_delay = pickup_delay
         self.dropoff_delay = dropoff_delay
+        
+        Request.count += 1
         

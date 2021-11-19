@@ -23,7 +23,6 @@ class Vehicle:
         destination_latest_time=math.inf,
         alias="",
     ):
-        Vehicle.count += 1
         self.id = Vehicle.count
         self.alias = alias if alias else self.id
         self.origin_node = OriginNode(origin_id, self, point=origin_point)
@@ -55,11 +54,13 @@ class Vehicle:
         self.alias = alias if alias else "V" + str(self.id)
         self.passengers = deque(maxlen=self.capacity)
         self.requests = list()
+        
+        Vehicle.count += 1
 
     @staticmethod
     def cleanup():
         Vehicle.count = 0
-
+    
     def must_return_to_origin(self):
         return self.destination_node != None
 
@@ -67,6 +68,10 @@ class Vehicle:
     def load(self):
         return len(self.passengers)
 
+    @property
+    def pos(self):
+        return self.origin_node.pos
+    
     def visit_nodes(self, *nodes):
         self.route.nodes.extend(nodes)
 
