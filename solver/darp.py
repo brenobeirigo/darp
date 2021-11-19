@@ -450,14 +450,14 @@ class Darp:
 
                     BIGM_ijk = max([0,
                                     self.l[i]
-                                    + self.dist_matrix[i][j]
+                                    + self.dist(i,j)
                                     + self.d[i]
                                     - self.e[j]])
 
                     constr_label = (
                         f"vehicle_{k}_arrives_at_{j}"
                         f"_after_arrival_at_{i}_plus_"
-                        f"service={self.d[i]}_and_t={round(self.dist_matrix[i][j],1)}_"
+                        f"service={self.d[i]}_and_t={round(self.dist(i,j),1)}_"
                         f"BIGM_{round(BIGM_ijk,1)}"
                     )
                     
@@ -465,7 +465,7 @@ class Darp:
                         self.var_B[k][j]
                         >= self.var_B[k][i]
                         + self.d[i]
-                        + self.dist_matrix[i][j]
+                        + self.dist(i,j)
                         - BIGM_ijk * (1 - self.var_x[k][i][j]),
                         constr_label,
                     )
