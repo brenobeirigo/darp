@@ -100,13 +100,13 @@ def parse_solution_from_filepath(solution_filepath):
 
 def get_solution_cleaned_lines_from_filepath(solution_filepath):
     with open(solution_filepath, "r") as file:
-
-        lines = map(str.strip, file.readlines())
-
-        pprint(lines)
+        
+        lines = file.readlines()
         # Clean \n's lines and trailing \n's spaces
-        output = [line for line in lines if line != ""]
-        pprint(output)
+        stripped_lines = list(map(str.strip, lines))
+        # Filter '' lines
+        output = [line for line in stripped_lines if line != ""]
+
     return output
 
 
