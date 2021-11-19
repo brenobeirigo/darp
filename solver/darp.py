@@ -3,7 +3,7 @@ from ortools.linear_solver import pywraplp
 from pprint import pprint
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(filename='loop2.log', level=logging.INFO)
 logger = logging.getLogger("darp")
 
 # from pyomo.environ import ConcreteModel, Var, PositiveReals, Objective, Constraint, maximize, SolverFactory
@@ -49,7 +49,6 @@ class Darp:
     def __init__(
         self,
         origin_depot,
-        destination_depot,
         K,
         Q,
         P,
@@ -59,21 +58,17 @@ class Darp:
         d,
         q,
         dist_matrix,
-        total_horizon
+        total_horizon,
+        destination_depot=None,
     ):
+        
+        self.origin_depot = origin_depot
+        
+        self.total_horizon = total_horizon
         
         # Vehicle data
         self.K = K  # Set of vehicles
         self.Q = Q  # Capacity of a vehicle
-
-        # Graph data
-        self.origin_depot = origin_depot
-        self.destination_depot = destination_depot
-        self.P = P  # Pickup locations
-        self.n = len(P)  # Number of requests
-        self.D = D  # Delivery locations
-        self.N = get_node_set(P, D, origin_depot, destination_depot)  # Node set
-        self.A = get_arc_set(P, D, origin_depot, destination_depot)  # Arc set
 
         # Request data
         self.L = L  # Max. ride time of a request
@@ -81,13 +76,35 @@ class Darp:
         self.q = q  # Amount loaded onto vehicle at node i (q_i = q_{n+i})
         self.el = el  # Earliest and latest times to reach nodes
 
+        if destination_depot is None:
+            self.destination_depot = str(origin_depot) + "*"
+            self.q[self.destination_depot] = self.q[self.origin_depot]
+            self.el[self.destination_depot] = self.el[self.origin_depot]
+        else:
+            self.destination_depot = destination_depot
+
+        # Graph data
+        self.P = P  # Pickup locations
+        self.n = len(P)  # Number of requests
+        self.D = D  # Delivery locations
+        # Node set
+        self.N = get_node_set(
+            self.P,
+            self.D,
+            self.origin_depot,
+            self.destination_depot)
+        # Arc set
+        self.A = get_arc_set(
+            self.P,
+            self.D,
+            self.origin_depot,
+            self.destination_depot)
+        
         # Dictionary of node earliest times
         self.e = {node_id: el[node_id][0] for node_id in self.N}
 
         # Dictionary of node latest times
         self.l = {node_id: el[node_id][1] for node_id in self.N}
-
-        self.total_horizon = total_horizon
 
         self.N_inbound = defaultdict(set)
         self.N_outbound = defaultdict(set)
@@ -104,7 +121,12 @@ class Darp:
                 if self.Q[k] >= abs(self.q[i]):
                     self.K_N_valid[k].add(i)
 
-        self.dist_matrix = dist_matrix
+        def wrapper_dist_matrix(i,j):
+            if j == self.destination_depot:
+                return 0
+            return dist_matrix[i][j]
+            
+        self.dist = wrapper_dist_matrix
 
         # Create the mip solver with the SCIP backend
         self.solver = pywraplp.Solver.CreateSolver("SCIP")
@@ -173,9 +195,9 @@ class Darp:
                     if (i,j) in self.A:
                         if i not in self.var_x[k]:
                             self.var_x[k][i] = dict()
-                    label_var_x = f"x[{k},{i},{j}]"
-                    self.var_x[k][i][j] = self.solver.IntVar(0, 1, label_var_x)
-
+                        label_var_x = f"x[{k},{i},{j}]"
+                        self.var_x[k][i][j] = self.solver.IntVar(0, 1, label_var_x)
+                        
     def declare_arrival_vars(self):
         for k in self.K:
             self.var_B[k] = {}
