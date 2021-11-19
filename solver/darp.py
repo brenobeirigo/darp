@@ -3,7 +3,7 @@ from ortools.linear_solver import pywraplp
 from pprint import pprint
 
 import logging
-logging.basicConfig(filename='loop2.log', level=logging.INFO)
+logging.basicConfig(level=logging.WARNING) # filename='loop2.log', 
 logger = logging.getLogger("darp")
 
 # from pyomo.environ import ConcreteModel, Var, PositiveReals, Objective, Constraint, maximize, SolverFactory
@@ -225,33 +225,52 @@ class Darp:
         pass
 
     @property
-    def nvar_(self):
+    def solver_numvars_(self):
         return self.solver.NumVariables()
     
     @property
-    def nconstr_(self):
+    def solver_numconstrs_(self):
         return self.solver.NumConstraints()
     
     @property
-    def objvalue_(self):
+    def sol_objvalue_(self):
         return self.solver.Objective().Value()
     
     @property
-    def cputime_(self):
+    def sol_cputime_(self):
         return self.solver.wall_time()
     
     @property
-    def numiterations_(self):
+    def graph_numnodes_(self):
+        return len(self.N)
+    
+    @property
+    def graph_numedges_(self):
+        return len(self.A)
+    
+    @property
+    def solver_numiterations_(self):
         return self.solver.iterations()
     
     @property
-    def numnodes_(self):
+    def solver_numnodes_(self):
         return self.solver.nodes()
     
+    @property
+    def summary_sol(self):
+        return dict(sol_objvalue=self.sol_objvalue_,
+                    sol_cputime=self.sol_cputime_,
+                    graph_numedges=self.graph_numedges_,
+                    graph_numnodes=self.graph_numnodes_,
+                    solver_numconstrs=self.solver_numconstrs_,
+                    solver_numvars=self.solver_numvars_,
+                    solver_numiterations=self.solver_numiterations_,
+                    solver_numnodes=self.solver_numnodes_)
+    
     def stats(self):
-        print(f"  Number of variables = {self.nvar_}")
-        print(f"Number of constraints = {self.nconstr_}")
-        print(   f"   Objective value = {self.objvalue_:.2f}")
+        print(f"  Number of variables = {self.solver_numvars_}")
+        print(f"Number of constraints = {self.solver_numconstrs_}")
+        print(   f"   Objective value = {self.sol_objvalue_:.2f}")
         # print(f"Constraints = {list(map(str, self.solver.constraints()))}")
         # print(f"Variables = {self.solver.variables()}")
 
@@ -299,15 +318,15 @@ class Darp:
             dict_vehicle_routes = self.get_dict_route_vehicle(flow_edges)
             logger.info(dict_vehicle_routes)
             
-            print("# Problem solved in:")
-            print(f"\t- {self.cputime_:.1f} milliseconds")
-            print(f"\t- {self.numiterations_} iterations")
-            print(f"\t- {self.numnodes_} branch-and-bound nodes")
+            logger.info("# Problem solved in:")
+            logger.info(f"\t- {self.sol_cputime_:.1f} milliseconds")
+            logger.info(f"\t- {self.solver_numiterations_} iterations")
+            logger.info(f"\t- {self.solver_numnodes_} branch-and-bound nodes")
 
-            print(f"# Objective value = {self.objvalue_:.2f}")
+            logger.info(f"# Objective value = {self.sol_objvalue_:.2f}")
 
         else:
-            print("The problem does not have an optimal solution.")
+            logger.info("The problem does not have an optimal solution.")
 
     def get_dict_route_vehicle(self, edges):
         
