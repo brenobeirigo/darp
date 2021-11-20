@@ -1,16 +1,8 @@
 from collections import defaultdict
 from ortools.linear_solver import pywraplp
-from pprint import pprint
 
 import logging
-logging.basicConfig(level=logging.WARNING) # filename='loop2.log', 
-logger = logging.getLogger("darp")
-
-# from pyomo.environ import ConcreteModel, Var, PositiveReals, Objective, Constraint, maximize, SolverFactory
-
-TOTAL_DISTANCE_TRAVELED = "total_dist"
-TOTAL_WAITING = "total_waiting"
-
+logger = logging.getLogger('__main__'+ "." + __name__)
 
 def get_node_set(P, D, origin_depot, destination_depot):
     return [origin_depot] + P + D + [destination_depot]
@@ -152,7 +144,7 @@ class Darp:
     def build(self):
         self.declare_variables()
         self.set_constraints()
-        self.set_objective_function()
+        self.set_objfunc_min_distance_traveled()
         
     def build_solve(self):
         self.build()
@@ -361,25 +353,29 @@ class Darp:
                         edges.append((k,i,j))
         return edges
 
-    def set_objective_function(self, obj=TOTAL_DISTANCE_TRAVELED):
+    def set_objfunc_min_total_waiting(self):
+        obj_expr = [
+            self.var_L[k][i] + (self.var_B[k][i] - self.e[i])
+            for k in self.K
+            for i in self.P
+        ]
+        
+        self.solver.Minimize(self.solver.Sum(obj_expr))
+        
+        logger.info("objective_function_min_total_waiting")
+        
+    def set_objfunc_min_distance_traveled(self):
 
-        if obj == TOTAL_DISTANCE_TRAVELED:
-
-            obj_expr = [
-                self.dist(i,j) * self.var_x[k][i][j]
-                for k in self.K
-                for i in self.N
-                for j in self.N_outbound[i]
-            ]
-
-        else:
-            obj_expr = [
-                self.var_L[k][i] + (self.var_B[k][i] - self.e[i])
-                for k in self.K
-                for i in self.P
-            ]
+        obj_expr = [
+            self.dist(i,j) * self.var_x[k][i][j]
+            for k in self.K
+            for i in self.N
+            for j in self.N_outbound[i]
+        ]
 
         self.solver.Minimize(self.solver.Sum(obj_expr))
+        
+        logger.info("objective_function_min_distance_traveled")
 
     def constr_every_request_is_served_exactly_once(self):
         for i in self.P:
