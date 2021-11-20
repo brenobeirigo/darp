@@ -102,11 +102,9 @@ class Darp:
         self.N_outbound = defaultdict(set)
         self.K_N_valid = defaultdict(set)
 
-        for i in self.N:
-            for j in self.N:
-                if (i,j) in self.A:
-                    self.N_outbound[i].add(j)
-                    self.N_inbound[j].add(i)
+        for i, j in self.A:
+            self.N_outbound[i].add(j)
+            self.N_inbound[j].add(i)
 
         for k in self.K:
             for i in self.N:
@@ -360,8 +358,7 @@ class Darp:
         obj_expr = [
             self.dist(i,j) * self.var_x[k][i][j]
             for k in self.K
-            for i in self.N
-            for j in self.N_outbound[i]
+            for i, j in self.A
         ]
 
         self.solver.Minimize(self.solver.Sum(obj_expr))
