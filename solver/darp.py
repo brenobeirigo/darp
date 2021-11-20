@@ -261,53 +261,53 @@ class Darp:
 
         if status == pywraplp.Solver.OPTIMAL:
 
-            logger.info("# Arrivals")
+            logger.debug("# Arrivals")
             for k in self.K:
                 for i in self.N:
-                    logger.info(
+                    logger.debug(
                         f"{self.var_B[k][i].name():>20} = "
                         f"{self.var_B[k][i].solution_value():>7.2f}"
                     )
 
-            logger.info("# Loads")
+            logger.debug("# Loads")
             for k in self.K:
                 for i in self.N:
 
-                    logger.info(
+                    logger.debug(
                         f"{self.var_Q[k][i].name():>20} = "
                         f"{self.var_Q[k][i].solution_value():>7.0f}"
                     )
 
-            logger.info(" # Ride times:")
+            logger.debug(" # Ride times:")
             for k in self.K:
                 for i in self.P:
-                    logger.info(
+                    logger.debug(
                         f"{self.var_L[k][i].name():>20} = "
                         f"{self.var_L[k][i].solution_value():>7.2f}"
                     )
 
-            logger.info("# Flow variables:")
+            logger.debug("# Flow variables:")
             flow_edges = self.get_flow_edges()
             for k,i,j in flow_edges:
-                logger.info(
+                logger.debug(
                     f"{self.var_x[k][i][j].name():>20} = "
                     f"{self.var_x[k][i][j].solution_value():<7}"
                 )
 
 
-            logger.info("# Routes:")
+            logger.debug("# Routes:")
             dict_vehicle_routes = self.get_dict_route_vehicle(flow_edges)
-            logger.info(dict_vehicle_routes)
+            logger.debug(dict_vehicle_routes)
             
-            logger.info("# Problem solved in:")
-            logger.info(f"\t- {self.sol_cputime_:.1f} milliseconds")
-            logger.info(f"\t- {self.solver_numiterations_} iterations")
-            logger.info(f"\t- {self.solver_numnodes_} branch-and-bound nodes")
+            logger.debug("# Problem solved in:")
+            logger.debug(f"\t- {self.sol_cputime_:.1f} milliseconds")
+            logger.debug(f"\t- {self.solver_numiterations_} iterations")
+            logger.debug(f"\t- {self.solver_numnodes_} branch-and-bound nodes")
 
-            logger.info(f"# Objective value = {self.sol_objvalue_:.2f}")
+            logger.debug(f"# Objective value = {self.sol_objvalue_:.2f}")
 
         else:
-            logger.info("The problem does not have an optimal solution.")
+            logger.debug("The problem does not have an optimal solution.")
 
     def get_dict_route_vehicle(self, edges):
         
@@ -351,7 +351,7 @@ class Darp:
         
         self.solver.Minimize(self.solver.Sum(obj_expr))
         
-        logger.info("objective_function_min_total_waiting")
+        logger.debug("objective_function_min_total_waiting")
         
     def set_objfunc_min_distance_traveled(self):
 
@@ -363,7 +363,7 @@ class Darp:
 
         self.solver.Minimize(self.solver.Sum(obj_expr))
         
-        logger.info("objective_function_min_distance_traveled")
+        logger.debug("objective_function_min_distance_traveled")
 
     def constr_every_request_is_served_exactly_once(self):
         for i in self.P:
@@ -377,7 +377,7 @@ class Darp:
                 constr_label,
             )
             
-            logger.info(constr_label)
+            logger.debug(constr_label)
 
     def constr_same_vehicle_services_pickup_and_delivery(self):
         for k in self.K:
@@ -400,7 +400,7 @@ class Darp:
                     constr_label,
                 )
                 
-                logger.info(constr_label)
+                logger.debug(constr_label)
 
     def constr_every_vehicle_leaves_the_start_terminal(self):
         
@@ -420,7 +420,7 @@ class Darp:
                 constr_label,
             )
             
-            logger.info(constr_label)
+            logger.debug(constr_label)
 
     def constr_the_same_vehicle_that_enters_a_node_leaves_the_node(self):
         
@@ -439,7 +439,7 @@ class Darp:
                     constr_label,
                 )
         
-                logger.info(constr_label)
+                logger.debug(constr_label)
 
 
     def constr_every_vehicle_enters_the_end_terminal(self):
@@ -457,7 +457,7 @@ class Darp:
                 constr_label,
             )
             
-            logger.info(constr_label)
+            logger.debug(constr_label)
 
     def constr_vehicle_only_visits_valid_nodes(self):
         for k in self.K:
@@ -472,7 +472,7 @@ class Darp:
                         self.var_x[k][i][j] == 0,
                         constr_label)
 
-                    logger.info(constr_label)
+                    logger.debug(constr_label)
 
     def constr_ensure_feasible_visit_times(self):
         for k in self.K:
@@ -501,7 +501,7 @@ class Darp:
                         constr_label,
                     )
                     
-                    logger.info(constr_label)
+                    logger.debug(constr_label)
 
     def constr_visit_times_within_requests_tw(self):
         for k in self.K:
@@ -512,7 +512,7 @@ class Darp:
                     f"after_earliest={self.e[i]}"
                 )
 
-                logger.info(constr_label_earliest)
+                logger.debug(constr_label_earliest)
 
                 self.solver.Add(
                     self.var_B[k][i] >= self.e[i],
@@ -523,7 +523,7 @@ class Darp:
                     f"before_latest={self.l[i]}"
                 )
 
-                logger.info(constr_label_latest)
+                logger.debug(constr_label_latest)
 
                 self.solver.Add(
                     self.var_B[k][i] <= self.l[i],
@@ -546,7 +546,7 @@ class Darp:
                     constr_label,
                 )
                 
-                logger.info(constr_label)
+                logger.debug(constr_label)
 
     def constr_ride_times_are_lower_than_request_thresholds(self):
         for k in self.K:
@@ -563,7 +563,7 @@ class Darp:
                     self.var_L[k][i] >= self.dist(i,dest_i),
                     constr_label_lower)
 
-                logger.info(constr_label_lower)
+                logger.debug(constr_label_lower)
                 
                 constr_label_upper = (
                     f"{i}_travels_at_most_{self.L[i]}_"
@@ -574,7 +574,7 @@ class Darp:
                     self.var_L[k][i] <= self.L[i],
                     constr_label_upper)
 
-                logger.info(constr_label_upper)
+                logger.debug(constr_label_upper)
 
 
     def constr_vehicle_starts_empty(self):
@@ -587,7 +587,7 @@ class Darp:
                 constr_label,
             )
             
-            logger.info(constr_label)
+            logger.debug(constr_label)
 
     def constr_vehicle_ends_empty(self):
 
@@ -599,7 +599,7 @@ class Darp:
                 constr_label,
             )
 
-            logger.info(constr_label)
+            logger.debug(constr_label)
 
     def constr_ensure_feasible_vehicle_loads(self):
         for k in self.K:
@@ -621,7 +621,7 @@ class Darp:
                         f"BIGW_{round(BIGW_ijk,1)}"
                     )
                     
-                    logger.info(constr_label)
+                    logger.debug(constr_label)
 
                     self.solver.Add(
                         self.var_Q[k][j]
@@ -645,7 +645,7 @@ class Darp:
                     f"max(0_or_{self.q[i]})"
                 )
 
-                logger.info(constr_label_lower)
+                logger.debug(constr_label_lower)
 
                 self.solver.Add(
                     self.var_Q[k][i] >= lower_capacity,
@@ -658,7 +658,7 @@ class Darp:
                     f"min({self.Q[k]}_or_{self.Q[k]}_plus_{self.q[i]})"
                 )
 
-                logger.info(constr_label_upper)
+                logger.debug(constr_label_upper)
 
                 self.solver.Add(
                     self.var_Q[k][i] <= upper_capacity,
