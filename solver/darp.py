@@ -258,13 +258,6 @@ class Darp:
                     solver_numvars=self.solver_numvars_,
                     solver_numiterations=self.solver_numiterations_,
                     solver_numnodes=self.solver_numnodes_)
-    
-    def stats(self):
-        print(f"  Number of variables = {self.solver_numvars_}")
-        print(f"Number of constraints = {self.solver_numconstrs_}")
-        print(   f"   Objective value = {self.sol_objvalue_:.2f}")
-        # print(f"Constraints = {list(map(str, self.solver.constraints()))}")
-        # print(f"Variables = {self.solver.variables()}")
 
     def solve(self):
 
@@ -347,10 +340,10 @@ class Darp:
 
         edges = []
         for k in self.K:
-            for i in self.N:
-                for j in self.N_outbound[i]:
-                    if self.var_x[k][i][j].solution_value() > 0.9:
-                        edges.append((k,i,j))
+            for i, j in self.A:
+                if self.var_x[k][i][j].solution_value() > 0.9:
+                    edges.append((k,i,j))
+        
         return edges
 
     def set_objfunc_min_total_waiting(self):
@@ -404,8 +397,10 @@ class Darp:
                 )
                 
                 self.solver.Add(
-                    sum(self.var_x[k][i][j] for j in self.N_outbound[i])
-                    - sum(self.var_x[k][dest_i][j] for j in self.N_outbound[dest_i])
+                    sum(self.var_x[k][i][j]
+                        for j in self.N_outbound[i])
+                    - sum(self.var_x[k][dest_i][j]
+                          for j in self.N_outbound[dest_i])
                     == 0,
                     constr_label,
                 )
@@ -471,16 +466,18 @@ class Darp:
 
     def constr_vehicle_only_visits_valid_nodes(self):
         for k in self.K:
-            for i in self.N:
-                for j in self.N_outbound[i]:
-                    if self.Q[k] < abs(self.q[i]) or self.Q[k] < abs(self.q[j]):
-                        constr_label = f"vehicle_{k}_cannot_travel_edge_{i}({self.q[i]})_{j}({self.q[j]})"
-                        self.solver.Add(
-                            self.var_x[k][i][j] == 0,
-                            constr_label,
-                        )
+            for i, j in self.A:
+                if self.Q[k] < abs(self.q[i]) or self.Q[k] < abs(self.q[j]):
+                    
+                    constr_label = (
+                        f"vehicle_{k}_cannot_travel_"
+                        f"edge_{i}({self.q[i]})_{j}({self.q[j]})")
+                    
+                    self.solver.Add(
+                        self.var_x[k][i][j] == 0,
+                        constr_label)
 
-                        logger.info(constr_label)
+                    logger.info(constr_label)
 
     def constr_ensure_feasible_visit_times(self):
         for k in self.K:
@@ -495,7 +492,8 @@ class Darp:
                     constr_label = (
                         f"vehicle_{k}_arrives_at_{j}"
                         f"_after_arrival_at_{i}_plus_"
-                        f"service={self.d[i]}_and_t={round(self.dist(i,j),1)}_"
+                        f"service={self.d[i]}_and_"
+                        f"t={round(self.dist(i,j),1)}_"
                         f"BIGM_{round(BIGM_ijk,1)}"
                     )
                     
@@ -515,7 +513,8 @@ class Darp:
             for i in self.N:
 
                 constr_label_earliest = (
-                    f"vehicle_{k}_arrives_at_{i}_" f"after_earliest={self.e[i]}"
+                    f"vehicle_{k}_arrives_at_{i}_"
+                    f"after_earliest={self.e[i]}"
                 )
 
                 logger.info(constr_label_earliest)
@@ -525,7 +524,8 @@ class Darp:
                     constr_label_earliest)
 
                 constr_label_latest = (
-                    f"vehicle_{k}_arrives_at_{i}_" f"before_latest={self.l[i]}"
+                    f"vehicle_{k}_arrives_at_{i}_"
+                    f"before_latest={self.l[i]}"
                 )
 
                 logger.info(constr_label_latest)
