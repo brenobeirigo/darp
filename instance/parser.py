@@ -1,41 +1,12 @@
-from pprint import pprint
 from model.Request import Request
 from model.Vehicle import Vehicle
-from model.Node import Node
+from instance.Instance import Instance
 import numpy as np
 import itertools
 
 
 PARSER_TYPE_CORDEAU = "cordeau_2006"
 PARSER_TYPE_ROPKE = "ropke_2007"
-
-class Instance:
-    def __init__(
-        self, vehicles, requests, nodes, dist_matrix, config_dict=None
-    ):
-        self.vehicles = vehicles
-        self.requests = requests
-        self.nodes = nodes
-        self.dist_matrix = dist_matrix
-        self.config_dict = config_dict
-        self.node_id_dict = {n.pos:n for n in self.nodes}
-        self.request_id_dict = {r.id:r for r in self.requests}
-        self.vehicle_id_dict = {v.id:v for v in self.vehicles}
-    
-    def __del__(self):
-        '''Resets the id count for requests, vehicles, and nodes'''
-        Request.cleanup()
-        Vehicle.cleanup()
-        Node.cleanup()
-
-    def __str__(self) -> str:
-        output = "\n".join([f"{k} = {v}" for k, v in self.config_dict.items()])
-        output += "\n\n### Nodes:\n" + "\n".join(map(str, self.nodes))
-        output += "\n\n### Requests:\n"
-        output += "\n".join(map(str,self.requests))
-        output += "\n\n### Vehicles:\n"
-        output += "\n".join(map(str,self.vehicles))
-        return output
     
 def parse_node_line(line):
     (
