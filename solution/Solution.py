@@ -72,9 +72,11 @@ class VehicleSolution:
         self.id = id_vehicle
         # Duration = Departure 1st node - Arrival last node
         self.D = D
+        # Max. load vehicle
         self.Q = Q
-        # Waiting = Sum of waiting at all nodes (earliest - arrival)
+        # Avg. waiting at pickup and delivery nodes (vehicle arrived earlier than earliest time)
         self.W = W
+        # Avg. transit time
         self.T = T
         self.visits = visits
         # 0 for pickups and >= for dropoffs
@@ -111,8 +113,8 @@ class VehicleSolution:
         dropoffs = [pair["solution"] for pair in io_node_dict.values() if type(pair["instance"]) is DropoffNode]
         transit = sum([n.t for n in dropoffs])
         transit2 = sum([n.t for n in pickups])
-        print("transit_d:", transit)
-        print("transit_p:", transit2)
+        # print("transit_delivery_nodes (t):", transit)
+        # print("transit_pickup_nodes (t):", transit2)
         return transit
         
         
