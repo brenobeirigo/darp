@@ -14,7 +14,7 @@ def node_color(n):
     else: return COLOR_ORIGIN
     
 
-def get_cmap(n, name='hsv'):
+def get_cmap(n, name='Set1'):
     '''
     Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
     RGB color; the keyword argument name must be a standard mpl colormap name.
@@ -43,7 +43,10 @@ def plot_vehicle_route(
     nodes = []
 
     for n in visits:
-        node = node_id_dict[n.id]
+        try:
+            node = node_id_dict[n.id]
+        except:
+            node = node_id_dict[int(n.id.replace("*",""))]
         nodes.append(node)
         node_colors.append(node_color(node))
         node_xy_coords.append(node.xy_coord)
@@ -56,6 +59,7 @@ def plot_vehicle_route(
                 p.xy_coord,
                 d.xy_coord,
                 edgecolor=route_color,
+                facecolor=route_color,
                 arrowstyle=arrowstyle,
                 linestyle=linestyle,
                 mutation_scale=10)
@@ -66,7 +70,8 @@ def plot_vehicle_route(
             [node_xy_coords],
             linewidths=linewidth,
             linestyles=linestyle,
-            edgecolors=route_color
+            edgecolors=route_color,
+            facecolors=route_color
         )
 
         axis.add_collection(lc_vehicle)
@@ -124,13 +129,25 @@ def plot_vehicle_routes(
 
     cmap = get_cmap(len(v_nodes))
     
+    v_ids = []
+    v_colors = []
     for i, (v, visits) in enumerate(v_nodes.items()):
+        v_id = instance.vehicle_id_dict[v].alias
         if jointly:
             axis = ax
+            v_ids.append(v_id)
+            
         else:
             axis = ax[i]
-            axis.set_title(instance.vehicle_id_dict[v].alias)
+            axis.set_title(v_id)
+        v_color = cmap(i)
+        v_colors.append(v_color)
+        plot_vehicle_route(axis, visits, instance.node_id_dict, route_color=v_color)
         
-        plot_vehicle_route(axis, visits, instance.node_id_dict, route_color=cmap(i))
+
+    if jointly:
+        legends = [patches.Patch(color=v_color, label=v_id)
+                   for v_id, v_color in zip(v_ids, v_colors)]
+        axis.legend(handles=legends, frameon=False, loc='lower center', ncol=5)
         
-        
+    return fig, ax
