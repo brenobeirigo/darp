@@ -1,6 +1,5 @@
 from collections import defaultdict, OrderedDict
 from ortools.linear_solver import pywraplp
-from pprint import pprint
 import logging
 logger = logging.getLogger('__main__'+ "." + __name__)
 
@@ -134,6 +133,8 @@ class Darp:
 
         # The ride time of request i on vehicle k
         self.var_L = {}
+        
+        self.solution_ = None
 
     def __str__(self):
         input_data_str = ", ".join(f"\n\t{k}={v}" for k, v in vars(self).items())
@@ -761,7 +762,7 @@ class Darp:
                 W_avg=k_avg_waiting,
                 T=k_total_transit,
                 T_avg=k_avg_transit,
-                routes=list(k_route_node_data.items()))
+                route=list(k_route_node_data.items()))
         
         summary = dict(
             cost=total_cost,
@@ -780,6 +781,10 @@ class Darp:
         status = self.solver.Solve()
 
         if status == pywraplp.Solver.OPTIMAL:
+            
+            self.solution_ = dict(
+                fleet=self.get_solution_dict(),
+                solver=self.sol_)
 
             logger.debug("# Flow variables:")
             flow_edges = self.get_flow_edges()
@@ -817,7 +822,7 @@ class Darp:
                         f"{self.var_L[k][i].name():>20} = "
                         f"{self.var_L[k][i].solution_value():>7.2f}"
                     )
-            result = self.get_solution_dict()
+            
             
             
             
@@ -833,7 +838,7 @@ class Darp:
             logger.debug(f"\t- {self.solver_numnodes_} branch-and-bound nodes")
             logger.debug(f"# Objective value = {self.sol_objvalue_:.2f}")
             
-            return result
+            return self.solution_
 
         else:
             logger.debug("The problem does not have an optimal solution.")
