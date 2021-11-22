@@ -1,11 +1,6 @@
 import re
-from model.Node import DestinationNode
-from model.Node import DropoffNode
-from model.Vehicle import Vehicle
 from solution.Solution import Solution, NodeSolution, VehicleSolution
 from pprint import pprint
-
-from instance import parser
 from solution.Solution import (
     NODE_PATTERN_PARRAGH,
     VEHICLE_ROUTE_PATTERN_PARRAGH,
@@ -97,6 +92,33 @@ def parse_solution_from_filepath(solution_filepath):
 
     return s
 
+def parse_solution_dict(result):
+    vehicle_routes = []
+    for v_id, v_data in result["fleet"]["K"].items():
+        v_D, v_Q, v_W, v_T = v_data["D"], v_data["Q"], v_data["W"], v_data["T"]
+        node_sol = []
+        for node_id, node_data in v_data["route"]:
+            node_sol.append(
+                NodeSolution(
+                    node_id,
+                    node_data["w"],
+                    node_data["b"],
+                    node_data["t"],
+                    node_data["q"]))
+            
+        vehicle_sol = VehicleSolution(v_id, v_D, v_Q, v_W, v_T, node_sol)
+        vehicle_routes.append(vehicle_sol)
+        
+    s = Solution(
+            result["fleet"]["summary"]["cost"],
+            result["fleet"]["summary"]["total_duration"],
+            result["fleet"]["summary"]["total_waiting"],
+            result["fleet"]["summary"]["total_transit"],
+            avg_transit=result["fleet"]["summary"]["avg_transit"],
+            avg_waiting=result["fleet"]["summary"]["avg_waiting"],
+            vehicle_solutions=vehicle_routes,
+        )
+    return s
 
 def get_solution_cleaned_lines_from_filepath(solution_filepath):
     with open(solution_filepath, "r") as file:
