@@ -55,7 +55,7 @@ def plot_vehicle_route(
     if show_arrows:
         for p, d in zip(nodes[:-1], nodes[1:]):
 
-            p = patches.FancyArrowPatch(
+            arrow = patches.FancyArrowPatch(
                 p.xy_coord,
                 d.xy_coord,
                 edgecolor=route_color,
@@ -63,7 +63,7 @@ def plot_vehicle_route(
                 arrowstyle=arrowstyle,
                 linestyle=linestyle,
                 mutation_scale=10)
-            axis.add_artist(p)
+            axis.add_artist(arrow)
     else:
         # Plot vehicle route
         lc_vehicle = mc.LineCollection(
