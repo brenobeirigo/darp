@@ -1,10 +1,10 @@
 # https://cdv.dei.uc.pt/wp-content/uploads/2014/03/ptmc02a.pdf
 
-from instance import parser as pi
-from solution import parser as ps
+from instance import parser as instance_parser
+from solution import parser as solution_parser
 from pprint import pprint
 import os
-
+from model.Node import DropoffNode
 '''
 1 D:     84.33 Q:      2.00 W:       8.37 T:     30.22  0 (b:188.54; t:0.00; q:0.00) 10 (w:0.00 a:191.99; t:0.00; q:1.00) 11 (w:0.00 a:202.58; t:0.00; q:2.00) 35 (w:0.00 a:215.00; t:2.42; q:1.00) 34 (w:33.49 a:260.00; t:58.01; q:0.00) 0 (w:0.00 a:272.87; t:0.00; q:0.00)
 2 D:    351.65 Q:      3.00 W:       5.21 T:     40.15  0 (b:148.08; t:0.00; q:0.00) 14 (w:0.00 a:152.00; t:0.00; q:1.00) 22 (w:9.70 a:177.00; t:0.00; q:2.00) 3 (w:13.18 a:203.83; t:0.00; q:3.00) 27 (w:0.00 a:215.76; t:1.92; q:2.00) 46 (w:0.00 a:234.91; t:47.91; q:1.00) 38 (w:0.00 a:252.00; t:90.00; q:0.00) 12 (w:70.83 a:333.70; t:0.00; q:1.00) 24 (w:0.00 a:344.44; t:0.00; q:2.00) 48 (w:0.00 a:362.56; t:8.12; q:1.00) 6 (w:0.00 a:373.67; t:0.00; q:2.00) 36 (w:0.00 a:391.55; t:47.85; q:1.00) 15 (w:0.00 a:404.99; t:0.00; q:2.00) 18 (w:0.00 a:417.69; t:0.00; q:3.00) 30 (w:0.00 a:432.00; t:48.33; q:2.00) 21 (w:0.00 a:444.96; t:0.00; q:3.00) 39 (w:0.00 a:457.75; t:42.76; q:2.00) 42 (w:0.00 a:471.54; t:43.84; q:1.00) 45 (w:0.00 a:485.61; t:30.65; q:0.00) 0 (w:0.00 a:499.72; t:0.00; q:0.00)
@@ -37,15 +37,15 @@ root = "/home/bbeirigo/study/metaheuristics/darp"
 input_filepath = "instance/data/darp_ropke_2007/tabu/pr02"
 output_filepath = "instance/data/darpsrp_parragh_2015/DARP/pr02_result.txt"
 
-instance = pi.parse_instance_from_filepath(
+instance = instance_parser.parse_instance_from_filepath(
         os.path.join(root, input_filepath),
-        instance_parser=pi.PARSER_TYPE_ROPKE)
+        instance_parser=instance_parser.PARSER_TYPE_ROPKE)
 
 print(instance.config_dict)
 
 print(instance)
 
-solution = ps.parse_solution_from_filepath(os.path.join(root, output_filepath))
+solution = solution_parser.parse_solution_from_filepath(os.path.join(root, output_filepath))
 
 print("### ROUTES:")
 total_cost = 0
@@ -114,15 +114,15 @@ print(v0.route)
 
 '''
 
-"""
-        
-for v_sol in vehicle_routes:
+total_v_transit = 0        
+for v_sol in solution.vehicle_routes:
     
     print("\n" + str(v_sol))
     
     
     print("All nodes:")
-
+    b = 0
+    vehicle_waiting = 0
     for n in v_sol.visits:
         
         node = instance.node_id_dict[n.id]
@@ -137,35 +137,57 @@ for v_sol in vehicle_routes:
         print(n, node, f"{B_i:6.2f}", f"{v_W:6.2f}", f"{node.arrival:6.2f}", f"{node.tw.earliest:6.2f}")
     
     print("Dropoffs:")
+    transit = 0
+    total_ride = 0
+    max_q = [n.q for n in v_sol.visits] 
     for n in v_sol.visits:    
         node = instance.node_id_dict[n.id]
-        
+        print(n.q)
         if type(node) == DropoffNode:
-        
+            d = n
             o = node.request.pickup_node
-            o_D = o.arrival + node.service_delay
-            L_n = n.b - o_D
-            
+            departure_o = o.arrival + o.service_delay
+            ride_delay = d.b - departure_o
+            total_ride += ride_delay
             shortest_dist = instance.dist_matrix[o.pos][node.pos]
             
-            transit += L_n
-            print(o, node, L_n, shortest_dist, transit)
+            t = ride_delay - shortest_dist
+            transit += ride_delay
+            print(o, node, o.pos, node.pos, f"ride: {round(ride_delay,2)}", round(shortest_dist,2),  f"total transit: {round(transit,2)}",f"      total ride: {round(total_ride,2)}", f"t: {round(t,2)}")
     
+    total_v_transit+=transit
+    print("TRANSIT:", total_v_transit)
+    print(max(max_q))
     print("from to")
+    cost = 0
+    earliest_vehicle = 0
+    arrival = 0
+    total_distance = 0
+    vehicle_waiting_node = 0
+    vehicle_waiting = 0
     for o, d in zip(v_sol.visits[:-1], v_sol.visits[1:]):
         n_o = instance.node_id_dict[o.id]
-        
-        
-        
         n_d = instance.node_id_dict[d.id]
-        delay = d.b - n_d.tw.earliest
+        departure = o.b + n_o.service_delay
+        node_waiting = o.b - n_o.tw.earliest
         dist = instance.dist_matrix[n_o.pos][n_d.pos]
         cost+=dist
-        
-        print(n_o, n_o.service_delay, o, " - delay:", o.b-n_o.tw.earliest, "   →   ", n_d, n_d.service_delay, d, " - delay:", d.b-n_d.tw.earliest, " - DIST: ", dist, delay)
+        print(f"arrival({o.id:>6}) = {arrival:8.3f} / {o.b:7.3f} (w:{vehicle_waiting_node:>8.3f}) \t\t departure({o.id:>6}) = {departure:8.3f} \t\t dist({o.id:>6},{d.id:>6}) = {dist:7.3f} / ({total_distance:7.3f}) + d[{o.id:>6}] = {n_o.service_delay:7.3f} \t\t ({n_o.tw.earliest:7},{n_d.tw.latest:7}) \t\t node w: {node_waiting:7.3f} \t\t cost: {cost:7.3f}")
+        arrival = departure + dist
+        vehicle_waiting_node = d.b - arrival
+        vehicle_waiting += vehicle_waiting_node
+        total_distance += dist
+
+
+    n_d = instance.node_id_dict[d.id]
+    departure = d.b + n_d.service_delay
+    node_waiting = d.b - n_d.tw.earliest
+    print(f"arrival({d.id:>6}) = {arrival:8.3f} / {d.b:7.3f} (w:{vehicle_waiting_node:>8.3f}) \t\t departure({d.id:>6}) = {departure:8.3f} \t\t dist({d.id:>6},{0:>6}) = {0:7.3f} / ({total_distance:7.3f}) + d[{d.id:>6}] = {n_d.service_delay:7.3f} \t\t ({0:7},{n_d.tw.latest:7}) \t\t node w: {node_waiting:7.3f} \t\t cost: {cost:7.3f}")
+
+    
+            #print(n_o, n_o.service_delay, o, " - delay:", o.b-n_o.tw.earliest, "   →   ", n_d, n_d.service_delay, d, " - delay:", d.b-n_d.tw.earliest, " - DIST: ", dist, delay_node, earliest_vehicle)
 print("cost:", cost)
 print("b:", b)
-print("total waiting time:", vehicle_waiting)
-print(s)
-print("\n".join(map(str, s.vehicle_routes)))
-"""
+print("total waiting time:", vehicle_waiting, vehicle_waiting/(len(v_sol.visits)-2))
+print(solution)
+print("\n".join(map(str, solution.vehicle_routes)))

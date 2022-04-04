@@ -1,4 +1,5 @@
 from solver.darp import Darp
+from pprint import pprint
 
 dist_matrix = {
     "depot": {"1": 150, "2": 100, "depot": 0},
@@ -27,6 +28,5 @@ data = dict(
 model = Darp(**data)
 model.build()
 print(model)
-model.solve()
-model.stats()
-print(model.summary_sol)
+result = model.solve()
+pprint(result)
