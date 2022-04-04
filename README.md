@@ -134,7 +134,8 @@ Hence,  for example, passenger $i=1$:
 
 - shall be picked up at node $1 \in P$ with load $q_1 = 1$,
 - shall be picked up point $(x,y)=(-1.198, -5.164)$,
-- shall be picked up within time window $(e_1, l_1) = (0, 1440)$, - takes a pickup service duration $d_1=3$.
+- shall be picked up within time window $(e_1, l_1) = (0, 1440)$,
+- takes a pickup service duration $d_1=3$.
 
 Later, passenger $1$:
 
@@ -180,7 +181,7 @@ Set "a" considers small vehicle capacities and set "b" considers large vehicle c
 - Vehicle id
 - D: Route total duration (e.g., for vehicle `3`: 466.708 - 98.245 = 368.56)
 - Q: Max. occupancy
-- W: Avg. total waiting waiting at pickup and delivery nodes (vehicle arrived earlier  than earliest time window)
+- W: Avg. total waiting at pickup and delivery nodes (vehicle arrived earlier  than earliest time window)
 - T: Avg. transit time (total ride time / number of requests)
 
 Excerpt of instance `pr02` solution:
