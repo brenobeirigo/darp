@@ -29,7 +29,13 @@ for filename in instance_filenames:
     model = Darp(**instance.get_data())
     model.build()
     result = model.solve()
-    result["instance"] = filename
+    
+    # PRINT ROUTES
+    # result["instance"] = filename
+    # print(result["fleet"]["K"].items())
+    # for k, k_nodes in result["fleet"]["K"].items():
+    #     print(k, [n for n, _ in k_nodes["route"]])
+    # #     print(k, [n for n, data in k_result["route"].items()])
     
     logger.info(result["solver"]["sol_objvalue"])
 
