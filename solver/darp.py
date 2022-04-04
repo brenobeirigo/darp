@@ -112,7 +112,8 @@ class Darp:
 
         def wrapper_dist_matrix(i,j):
             if j == self.destination_depot:
-                return 0
+                # TODO destination is origin, makes sense for all?
+                return dist_matrix[i][self.origin_depot]
             return dist_matrix[i][j]
             
         self.dist = wrapper_dist_matrix
