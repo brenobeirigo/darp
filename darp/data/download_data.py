@@ -1,10 +1,10 @@
 import csv
 import re
 import os
+import sys
+sys.path.append(os.getcwd())
 
-
-FOLDER_DATA_RAW_INSTANCES = os.path.join(
-    os.getcwd(), "data","raw", "darp_instances")
+from config import FOLDER_DATA_RAW_INSTANCES
 
 FILEPATH_DATA_SOURCE = os.path.join(
     os.getcwd(), "darp", "data", "benchmark_instances.csv")

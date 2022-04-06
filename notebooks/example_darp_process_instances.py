@@ -1,5 +1,10 @@
 import os
-from pprint import pprint
+
+# Adding path to package
+import sys
+sys.path.append(os.getcwd())
+from config import FOLDER_DATA_RAW_INSTANCES, FOLDER_RESULTS
+
 from darp.solver.darp import Darp
 from darp.instance import parser as instance_parser
 from darp.solution import parser as solution_parser
@@ -12,12 +17,16 @@ format = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
 logging.basicConfig(level=logging.INFO, format=format)
 logger = logging.getLogger()
 
-result_folder = "./results/darp_mip/"
-os.makedirs(result_folder, exist_ok=True)
-
-instance_folder = "./instance/data/darp_cordeau_2006/"
+# Load instances
+instance_folder = os.path.join(FOLDER_DATA_RAW_INSTANCES, "darp_cordeau_2006")
 instance_filenames = os.listdir(instance_folder)
 
+# Create result folder
+folder_results = "darp_mip"
+result_folder = os.path.join(FOLDER_RESULTS, folder_results)
+os.makedirs(result_folder, exist_ok=True)
+
+# Loop and process all instances
 for filename in instance_filenames:
     logger.info(filename)
     filepath = os.path.join(instance_folder, filename)
