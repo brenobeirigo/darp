@@ -1,5 +1,5 @@
-from model.Node import PickupNode, DropoffNode
-from model.TimeWindow import TimeWindow
+from ..model.Node import PickupNode, DropoffNode
+from ..model.TimeWindow import TimeWindow
 import math
 
 class Request:

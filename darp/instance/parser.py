@@ -1,6 +1,6 @@
-from model.Request import Request
-from model.Vehicle import Vehicle
-from instance.Instance import Instance
+from ..model.Request import Request
+from ..model.Vehicle import Vehicle
+from ..instance.Instance import Instance
 import numpy as np
 import itertools
 

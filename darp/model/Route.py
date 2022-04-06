@@ -1,4 +1,4 @@
-from solution.Solution import Solution
+from ..solution.Solution import Solution
 
 class Route:
     

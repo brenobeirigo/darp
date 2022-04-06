@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.collections  as mc
-from model.Node import PickupNode, DropoffNode
+from ..model.Node import PickupNode, DropoffNode
 import matplotlib.patches as patches
 
 COLOR_PICKUP = 'green'

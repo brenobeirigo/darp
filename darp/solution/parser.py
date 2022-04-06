@@ -1,7 +1,7 @@
 import re
-from solution.Solution import Solution, NodeSolution, VehicleSolution
+from ..solution.Solution import Solution, NodeSolution, VehicleSolution
 from pprint import pprint
-from solution.Solution import (
+from ..solution.Solution import (
     NODE_PATTERN_PARRAGH,
     VEHICLE_ROUTE_PATTERN_PARRAGH,
 )

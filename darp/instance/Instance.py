@@ -1,6 +1,6 @@
-from model.Request import Request
-from model.Vehicle import Vehicle
-from model.Node import Node, OriginNode, PickupNode, DestinationNode, DropoffNode
+from ..model.Request import Request
+from ..model.Vehicle import Vehicle
+from ..model.Node import Node, OriginNode, PickupNode, DestinationNode, DropoffNode
 
 class Instance:
     def __init__(

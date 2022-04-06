@@ -1,4 +1,4 @@
-from instance import parser
+from darp.instance import parser
 from testfixtures import TempDirectory
 from darp.model.Vehicle import Vehicle
 from darp.model.Request import Request

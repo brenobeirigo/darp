@@ -1,7 +1,7 @@
 from collections import deque
-from model.Node import OriginNode, DestinationNode
-from model.TimeWindow import TimeWindow
-from model.Route import Route
+from ..model.Node import OriginNode, DestinationNode
+from ..model.TimeWindow import TimeWindow
+from ..model.Route import Route
 import math
 
 
