@@ -1,0 +1,12 @@
+Problem,Code,First reference,Number of instances,Size,Min. vehicles,Max. vehicles,Min. requests,Max. requests,Link,Comment
+Dial-a-ride problem,DARP,Cordeau and Laporte (2003),20,3-13/24-144,3,13,24,144,http://neumann.hec.ca/chairedistributique/data/darp/tabu/,
+Dial-a-ride problem,DARP,Cordeau (2006),24,2-4/16-48,2,4,16,48,http://neumann.hec.ca/chairedistributique/data/darp/branch-and-cut/,
+Dial-a-ride problem,DARP,Ropke et al. (2007),24,5-8/40-96,5,8,40,96,http://neumann.hec.ca/chairedistributique/data/darp/,
+Heterogeneous dial-a-ride problem,HDARP,Parragh (2011),24,2-4/16-48,2,4,16,48,http://prolog.univie.ac.at/research/DARP/,Data sets E and I
+Heterogeneous dial-a-ride problem,HDARP,Braekers et al. (2014),24,5-8/40-96,5,8,40,96,http://alpha.uhasselt.be/kris.braekers/ ,Data sets E and I
+Multi-trip heterogeneous DARP,MD-HDARP,Braekers et al. (2014),72,2-8/16-96,2,8,16,96,http://alpha.uhasselt.be/kris.braekers/,
+Realistic dial-a-ride problem,R-DARP,Liu et al. (2015),42,2-2/16-23,2,2,16,23,http://www.computational-logistics.org/orlib/topic/R-DARP/,
+Dial-a-ride problem with split requests,DARPSRP,Parragh et al. (2015),75,2-6/8-72,2,6,8,72,http://prolog.univie.ac.at/research/DARP/,
+Multi-trip dial-a-ride problem,MTDARP,Zhang et al. (2015),80,2-11/29-185,2,11,29,185,http://www.computational-logistics.org/orlib/topic/MTDARP/,
+Heterogeneous dial-a-ride problem with driver consistency,DC-HDARP,Braekers and Kovacs (2016),1296,2-186/16-888,2,186,16,888,http://alpha.uhasselt.be/kris.braekers/,888 = Number of requests over the multi-period
+Multitrip pickup and delivery problem with time windows and manpower planning,MTPDPTW-MP,Lim et al. (2017),365,3-17/26-214,3,17,26,214,http://www.computational-logistics.org/orlib/topic/MTPDPTWMP/,

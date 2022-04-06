@@ -1,7 +1,7 @@
 # https://blog.finxter.com/pytest-a-complete-overview/?tl_inbound=1&tl_target_all=1&tl_form_type=1&tl_period_type=3
-from model.Route import Route
-from model.Request import Request
-from model.Vehicle import Vehicle
+from darp.model.Route import Route
+from darp.model.Request import Request
+from darp.model.Vehicle import Vehicle
 import pytest
 
 dist_matrix = {

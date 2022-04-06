@@ -1,9 +1,9 @@
 import os
 from pprint import pprint
-from solver.darp import Darp
-from instance import parser as instance_parser
-from solution import parser as solution_parser
-import plot.route as route_plot
+from darp.solver.darp import Darp
+from darp.instance import parser as instance_parser
+from darp.solution import parser as solution_parser
+import darp.plot.route as route_plot
 import json
 import logging
 
