@@ -13,6 +13,12 @@
 #     "depot*": {"depot": BIG, "1": BIG, "2": BIG, "1*": BIG, "2*": BIG, "depot*": BIG},
 # }
 
+import os
+import sys
+import matplotlib.pyplot as plt
+from pprint import pprint
+
+import networkx as nx
 dist_matrix = {
     "depot": {"1": 150, "2": 100,  "depot*": 0},
     "1": {"2": 25, "1*": 150, "2*": 100},
@@ -31,8 +37,6 @@ dist_matrix = {
 #     e. arr.:              150         100          450          400
 
 # %%
-import networkx as nx
-import matplotlib.pyplot as plt
 
 G = nx.DiGraph()
 
@@ -65,7 +69,7 @@ TOTAL_HORIZON = 1000
 
 data = dict(
     origin_depot="depot",
-    #destination_depot="depot",
+    # destination_depot="depot",
     destination_depot="depot*",
     K=["V1"],
     Q={"V1": 6},
@@ -93,14 +97,14 @@ data = dict(
 )
 
 # %%
-from solver.darp import Darp
-
+sys.path.append(os.path.abspath("../"))
+print(sys.path)
+from darp.solver.darp import Darp
 model = Darp(**data)
 print(model)
 model.build()
-model.solve()
-model.stats()
-
+solution = model.solve()
+pprint(solution)
 # %% [markdown]
 # With a new request (2), vehicle picks up two requests:
 
@@ -119,8 +123,9 @@ data["q"]["2*"] = -2
 
 model = Darp(**data)
 model.build()
-model.solve()
-model.stats()
+solution = model.solve()
+from pprint import pprint
+pprint(solution)
 
 # %% [markdown]
 # Adding vehicles `V2` with capacity `6` and vehicle `V3` with capacity `2`:
@@ -135,8 +140,8 @@ data["Q"]["V3"] = 2
 model = Darp(**data)
 model.build()
 print(model)
-model.solve()
-model.stats()
+solution = model.solve()
+pprint(solution)
 
 # %% [markdown]
 # With smaller vehicles (capacity 4), the requests cannot be combined:
@@ -146,5 +151,5 @@ data["Q"]["V1"] = 4
 data["Q"]["V2"] = 4
 print(data)
 model = Darp(**data)
-model.build_solve()
-model.stats()
+solution = model.build_solve()
+pprint(solution)
