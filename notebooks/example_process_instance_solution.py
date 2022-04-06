@@ -19,8 +19,6 @@ from darp.model.Node import DropoffNode
 
 
 '''
-instance_folder = "/home/bbeirigo/study/metaheuristics/darp/instance/data/darp_ropke_2007/branch-and-cut/"
-
 
 files = os.listdir(instance_folder)
 
