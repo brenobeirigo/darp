@@ -113,7 +113,7 @@ class Darp:
         def wrapper_dist_matrix(i,j):
             if j == self.destination_depot:
                 # TODO destination is origin, makes sense for all?
-                return dist_matrix[i][self.origin_depot]
+                return 0
             return dist_matrix[i][j]
             
         self.dist = wrapper_dist_matrix
@@ -148,7 +148,7 @@ class Darp:
         
     def build_solve(self):
         self.build()
-        self.solve()
+        return self.solve()
 
     def set_constraints(self):
 
@@ -747,8 +747,8 @@ class Darp:
                 k_total_waiting += node_data['w']
             
             requests = set(k_route_node_ids).intersection(self.P)
-            k_avg_waiting = k_total_waiting/(2*len(requests))
-            k_avg_transit = k_total_transit/len(requests)
+            k_avg_waiting = k_total_waiting/(2*len(requests)) if requests else None
+            k_avg_transit = k_total_transit/len(requests) if requests else None
             
             total_transit+=k_total_transit
             total_waiting+=k_total_waiting
