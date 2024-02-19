@@ -34,7 +34,7 @@ class Vehicle:
         # If closed trip, destination node is either
         # - The origin node
         # - Another node destination node
-    
+
         if not open_trip:
             self.destination_node = (
                 DestinationNode(destination_id, self, point=destination_point)
@@ -51,10 +51,10 @@ class Vehicle:
         )
         self.origin_node.arrival = origin_earliest_time
         self.route = Route(self.origin_node)
-        self.alias = alias if alias else "V" + str(self.id)
+        self.alias = alias if alias else f"V{str(self.id)}"
         self.passengers = deque(maxlen=self.capacity)
         self.requests = list()
-        
+
         Vehicle.count += 1
 
     @staticmethod

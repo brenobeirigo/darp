@@ -5,10 +5,10 @@ import sys
 sys.path.append(os.getcwd())
 from config import FOLDER_DATA_RAW_INSTANCES, FOLDER_RESULTS
 
-from darp.solver.darp import Darp
-from darp.instance import parser as instance_parser
-from darp.solution import parser as solution_parser
-import darp.plot.route as route_plot
+from src.solver.darp import Darp
+from src.instance import parser as instance_parser
+from src.solution import parser as solution_parser
+import src.plot.route as route_plot
 import json
 import logging
 

@@ -1,4 +1,4 @@
-from darp.model.Vehicle import Vehicle
+from src.model.Vehicle import Vehicle
 from shapely.geometry import Point
 import math
 

@@ -13,22 +13,27 @@
 #     "depot*": {"depot": BIG, "1": BIG, "2": BIG, "1*": BIG, "2*": BIG, "depot*": BIG},
 # }
 
+# %%
+
 import os
 import sys
 import matplotlib.pyplot as plt
 from pprint import pprint
 
 import networkx as nx
+
 dist_matrix = {
-    "depot": {"1": 150, "2": 100,  "depot*": 0},
-    "1": {"2": 25, "1*": 150, "2*": 100},
+    "depot": {"1": 150, "2": 100}, #,  "depot*": 0},
+    "1": {"2": 100, "1*": 150, "2*": 100},
     "2": {"1": 150, "1*": 400, "2*": 300},
-    "1*": {"1": 300, "2": 100, "2*": 25, "depot*": 0},
-    "2*": {"1": 150, "2": 100, "1*": 150, "depot*": 0},
-    "depot*": {},
+     "1*": {"2": 100, "2*": 25, "depot": 100},
+     "2*": {"1": 150, "1*": 150, "depot": 100},
+    #"depot*": {},
 }
 
-# %% [markdown]
+print(dist_matrix)
+
+
 #     route = [1, 2 , 1*, 2*]
 #     route ids   = [1, 2 , 3 , 4 ]
 #        arr.:              150         175          475          500
@@ -36,21 +41,21 @@ dist_matrix = {
 #          tw:           [0  ,180)   [20 ,200)    [300,600)    [320,620)
 #     e. arr.:              150         100          450          400
 
-# %%
+
 
 G = nx.DiGraph()
 
 options = {
-    "font_size": 36,
-    "node_size": 3000,
+    "font_size": 10,
+    "node_size": 300,
     "node_color": "white",
     "edgecolors": "black",
-    "linewidths": 5,
-    "width": 5,
+    "linewidths": 1,
+    "width": 1,
 }
 
 G.add_weighted_edges_from(
-    (o, d, 1)
+    (o, d, dist_matrix[o].get(d))
     for o in dist_matrix
     for d in dist_matrix[o]
     # if dist_matrix[o][d] != BIG
@@ -59,6 +64,7 @@ G.add_weighted_edges_from(
 
 fig, ax = plt.subplots()
 nx.draw_networkx(G, arrows=True, ax=ax, **options)
+
 plt.show()
 
 # %% [markdown]
@@ -99,7 +105,7 @@ data = dict(
 # %%
 sys.path.append(os.path.abspath("../"))
 print(sys.path)
-from darp.solver.darp import Darp
+from src.solver.darp import Darp
 model = Darp(**data)
 print(model)
 model.build()

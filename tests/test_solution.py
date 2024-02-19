@@ -1,5 +1,5 @@
-from darp.solution.Solution import Solution
-import darp.solution.parser as sp
+from src.solution.Solution import Solution
+import src.solution.parser as sp
 import pytest
 from testfixtures import TempDirectory
 import os

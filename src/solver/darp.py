@@ -3,7 +3,8 @@ from ortools.linear_solver import pywraplp
 import logging
 logger = logging.getLogger('__main__'+ "." + __name__)
 
-def get_node_set(P, D, origin_depot, destination_depot):
+def get_node_set(P:list[str], D:list[str], origin_depot:str, destination_depot:str):
+    
     return [origin_depot] + P + D + [destination_depot]
 
 
