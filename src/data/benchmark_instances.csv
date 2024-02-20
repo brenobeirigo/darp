@@ -1,7 +1,6 @@
 Problem,Code,First reference,Number of instances,Size,Min. vehicles,Max. vehicles,Min. requests,Max. requests,Link,Comment
 Dial-a-ride problem,DARP,Cordeau and Laporte (2003),20,3-13/24-144,3,13,24,144,http://neumann.hec.ca/chairedistributique/data/darp/tabu/,
 Dial-a-ride problem,DARP,Cordeau (2006),24,2-4/16-48,2,4,16,48,http://neumann.hec.ca/chairedistributique/data/darp/branch-and-cut/,
-Dial-a-ride problem,DARP,Ropke et al. (2007),24,5-8/40-96,5,8,40,96,http://neumann.hec.ca/chairedistributique/data/darp/,
 Heterogeneous dial-a-ride problem,HDARP,Parragh (2011),24,2-4/16-48,2,4,16,48,http://prolog.univie.ac.at/research/DARP/,Data sets E and I
 Heterogeneous dial-a-ride problem,HDARP,Braekers et al. (2014),24,5-8/40-96,5,8,40,96,http://alpha.uhasselt.be/kris.braekers/ ,Data sets E and I
 Multi-trip heterogeneous DARP,MD-HDARP,Braekers et al. (2014),72,2-8/16-96,2,8,16,96,http://alpha.uhasselt.be/kris.braekers/,
