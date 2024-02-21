@@ -4,6 +4,8 @@ import matplotlib.collections  as mc
 from ..model.Node import PickupNode, DropoffNode
 import matplotlib.patches as patches
 
+from matplotlib.lines import Line2D
+
 COLOR_PICKUP = 'green'
 COLOR_DELIVERY = 'red'
 COLOR_ORIGIN = 'black'
@@ -35,7 +37,10 @@ def plot_vehicle_route(
     show_node_labels=True,
     arrowstyle='->',
     linestyle='--',
-    linewidth=1):
+    linewidth=1,
+    show_legend=True,
+    x_title="x",
+    y_title="y"):
     
     node_xy_coords = []
     node_colors = []
@@ -62,6 +67,7 @@ def plot_vehicle_route(
                 facecolor=route_color,
                 arrowstyle=arrowstyle,
                 linestyle=linestyle,
+                linewidth=linewidth,
                 mutation_scale=10)
             axis.add_artist(arrow)
     else:
@@ -80,6 +86,8 @@ def plot_vehicle_route(
     # Plot pickup and delivery nodes
     x, y = zip(*node_xy_coords)
     
+    axis.set_xlabel(x_title)
+    axis.set_ylabel(y_title)
     if show_nodes:
         axis.scatter(x, y, color=node_colors, marker='o', s=10)
 
@@ -98,6 +106,27 @@ def plot_vehicle_route(
     else:
         axis.set_xlim(min(x), max(x))
         axis.set_ylim(min(y), max(y))
+        
+    
+    if show_legend:
+        # Create custom legend markers
+        legend_elements = [Line2D([0], [0], marker='o', color='w', label='Origin',
+                                markerfacecolor='black', markersize=5),
+                        Line2D([0], [0], marker='o', color='w', label='Pickup',
+                                markerfacecolor='green', markersize=5),
+                        Line2D([0], [0], marker='o', color='w', label='Drop off',
+                                markerfacecolor='red', markersize=5)]
+
+        
+        # Add the custom legend to the plot
+        axis.legend(handles=legend_elements, loc='upper right')
+        
+        # Add the custom legend to the plot outside the bottom
+        axis.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                fancybox=False, shadow=False, ncol=3, fontsize='small')
+
+        # Adjust layout to make room for the legend
+        plt.subplots_adjust(bottom=0.1)
     
 def plot_vehicle_routes(
     instance,
@@ -113,22 +142,14 @@ def plot_vehicle_routes(
     linewidth=1):
     
     
-    if jointly:
-        n_plots =  1
-    else:
-        n_plots = len(instance.vehicles)
-    
-
+    n_plots = 1 if jointly else len(instance.vehicles)
     fig, ax = plt.subplots(
         n_plots,
         figsize=figsize)
 
-    v_nodes=dict()
-    for v in solution.vehicle_routes:
-        v_nodes[v.id] = v.visits
-
+    v_nodes = {v.id: v.visits for v in solution.vehicle_routes}
     cmap = get_cmap(len(v_nodes))
-    
+
     v_ids = []
     v_colors = []
     for i, (v, visits) in enumerate(v_nodes.items()):
@@ -136,18 +157,30 @@ def plot_vehicle_routes(
         if jointly:
             axis = ax
             v_ids.append(v_id)
-            
+
         else:
             axis = ax[i]
             axis.set_title(v_id)
+    
         v_color = cmap(i)
         v_colors.append(v_color)
-        plot_vehicle_route(axis, visits, instance.node_id_dict, route_color=v_color)
-        
+        plot_vehicle_route(
+            axis,
+            visits,
+            instance.node_id_dict,
+            route_color=v_color,
+            show_arrows=show_arrows,
+            show_nodes=show_nodes,
+            show_node_labels=show_node_labels,
+            arrowstyle=arrowstyle,
+            linestyle=linestyle,
+            linewidth=linewidth,
+            coord_box=coord_box)
+
 
     if jointly:
         legends = [patches.Patch(color=v_color, label=v_id)
                    for v_id, v_color in zip(v_ids, v_colors)]
         axis.legend(handles=legends, frameon=False, loc='lower center', ncol=5)
-        
+
     return fig, ax
