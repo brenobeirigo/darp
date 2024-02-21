@@ -80,7 +80,6 @@ A typical DARP instance looks like this:
     32  -8.819  -4.749   3  -1    0 1440
     33   0.000   0.000   0   0    0  480
 
-
 The first line `2 16 480 3 30` features, in turn:
 
 - $|K|$: number of vehicles (`2`),
@@ -138,7 +137,9 @@ The following $n=|D|=16$ lines feature the destination node data:
     30   6.634  -7.426   3  -1    0 1440
     31  -9.450   3.792   3  -1    0 1440
     32  -8.819  -4.749   3  -1    0 1440
-    33   0.000   0.000   0   0    0  480
+
+The last line `33   0.000   0.000   0   0    0  480` corresponds to the destination depot data.
+This node is replicated so all vehicles have to return to it.
 
 Hence,  for example, passenger $i=1$:
 

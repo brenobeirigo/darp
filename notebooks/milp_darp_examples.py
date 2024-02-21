@@ -108,7 +108,12 @@ print(sys.path)
 from src.solver.darp import Darp
 model = Darp(**data)
 print(model)
+
+# %%
 model.build()
+
+# %%
+
 solution = model.solve()
 pprint(solution)
 # %% [markdown]
@@ -130,7 +135,6 @@ data["q"]["2*"] = -2
 model = Darp(**data)
 model.build()
 solution = model.solve()
-from pprint import pprint
 pprint(solution)
 
 # %% [markdown]

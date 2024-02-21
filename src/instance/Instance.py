@@ -1,11 +1,20 @@
 from ..model.Request import Request
 from ..model.Vehicle import Vehicle
-from ..model.Node import Node, OriginNode, PickupNode, DestinationNode, DropoffNode
+from ..model.node import Node, OriginNode, PickupNode, DestinationNode, DropoffNode
 import pandas as pd
+from dataclasses import dataclass
 
+@dataclass
+class InstanceConfig:
+    n_vehicles: int
+    n_customers: int
+    time_horizon_min: int
+    vehicle_capacity: int
+    maximum_ride_time_min: int
+  
 class Instance:
     def __init__(
-        self, vehicles, requests, nodes, dist_matrix, config_dict=None
+        self, vehicles, requests, nodes, dist_matrix, config_dict, instance_filepath, instance_parser
     ):
         self.config_dict = config_dict
 
@@ -83,7 +92,7 @@ class Instance:
         Node.cleanup()
 
     def __str__(self) -> str:
-        output = "\n".join([f"{k} = {v}" for k, v in self.config_dict.items()])
+        output = str(self.config_dict)
         output += "\n\n### Nodes:\n" + "\n".join(map(str, self.nodes))
         output += "\n\n### Requests:\n"
         output += "\n".join(map(str,self.requests))

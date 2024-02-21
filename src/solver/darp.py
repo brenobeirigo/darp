@@ -8,12 +8,12 @@ def get_node_set(P:list[str], D:list[str], origin_depot:str, destination_depot:s
     return [origin_depot] + P + D + [destination_depot]
 
 
-def get_arc_set(P, D, origin_depot, destination_depot):
+def get_arc_set(P:list[str], D:list[str], origin_depot:str, destination_depot:str):
 
     N = get_node_set(P, D, origin_depot, destination_depot)
     n = len(P)  # Number of requests
 
-    origin_pickup_arcs = set([(N[0], j) for j in P])
+    origin_pickup_arcs = {(N[0], j) for j in P}
 
     pd_dp_arcs = [
         (i, j)
@@ -30,7 +30,7 @@ def get_arc_set(P, D, origin_depot, destination_depot):
     # Vehicles travel directly to end depot when they are not assign to
     # users (equivalent to not leaving the depot)
     loop_depot_arcs = [(N[0], N[2 * n + 1])]
-    
+
     return origin_pickup_arcs.union(
         set(pd_dp_arcs),
         set(delivery_terminal_arcs),
@@ -55,9 +55,9 @@ class Darp:
     ):
         
         self.origin_depot = origin_depot
-        
+
         self.total_horizon = total_horizon
-        
+
         # Vehicle data
         self.K = K  # Set of vehicles
         self.Q = Q  # Capacity of a vehicle
@@ -69,7 +69,7 @@ class Darp:
         self.el = el  # Earliest and latest times to reach nodes
 
         if destination_depot is None:
-            self.destination_depot = str(origin_depot) + "*"
+            self.destination_depot = f"{str(origin_depot)}*"
             self.q[self.destination_depot] = self.q[self.origin_depot]
             self.el[self.destination_depot] = self.el[self.origin_depot]
         else:
@@ -91,7 +91,7 @@ class Darp:
             self.D,
             self.origin_depot,
             self.destination_depot)
-        
+
         # Dictionary of node earliest times
         self.e = {node_id: el[node_id][0] for node_id in self.N}
 
@@ -112,11 +112,8 @@ class Darp:
                     self.K_N_valid[k].add(i)
 
         def wrapper_dist_matrix(i,j):
-            if j == self.destination_depot:
-                # TODO destination is origin, makes sense for all?
-                return 0
-            return dist_matrix[i][j]
-            
+            return 0 if j == self.destination_depot else dist_matrix[i][j]
+
         self.dist = wrapper_dist_matrix
 
         # Create the mip solver with the SCIP backend
@@ -135,7 +132,7 @@ class Darp:
 
         # The ride time of request i on vehicle k
         self.var_L = {}
-        
+
         self.solution_ = None
 
     def __str__(self):

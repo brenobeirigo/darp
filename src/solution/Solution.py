@@ -2,7 +2,7 @@
 # input = 0 D:	455.309 Q:	3 W:	7.1095 T:	53.0065 ...
 # output = 0, 455.309, 3, 7.1095, 53.0065, ...
 from typing import OrderedDict
-from ..model.Node import DropoffNode, PickupNode
+from ..model.node import DropoffNode, PickupNode
 from collections import OrderedDict
 
 VEHICLE_ROUTE_PATTERN_PARRAGH = (

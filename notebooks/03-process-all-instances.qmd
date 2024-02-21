@@ -1,0 +1,91 @@
+## Solving the Instances
+
+### Import Statements
+
+```{python}
+import os
+import sys
+sys.path.append(os.getcwd())
+from config import FOLDER_DATA_RAW_INSTANCES, FOLDER_RESULTS
+
+from src.solver.darp import Darp
+from src.instance import parser as instance_parser
+from src.solution import parser as solution_parser
+import src.plot.route as route_plot
+import json
+import logging
+```
+
+- `import os` and `import sys`: These are standard Python modules for interacting with the operating system and Python runtime environment.
+- `sys.path.append(os.getcwd())`: Adds the current working directory to the system path. This allows for importing modules from the current directory.
+- `from config import ...`: Imports specific variables from a configuration module.
+- Imports from `src`: These imports suggest the script is part of a modular project structure, with separate modules for solving (`solver.darp`), parsing (`instance.parser`, `solution.parser`), and plotting (`plot.route`) related to DARP.
+
+### Logging Configuration
+
+```{python}
+format = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+logging.basicConfig(level=logging.INFO, format=format)
+logger = logging.getLogger()
+```
+
+- Configures the logging system to display time, logger name, log level, and the log message.
+- Sets the logging level to `INFO`. Change this to `DEBUG` to see more detailed log messages.
+
+### Load and Process Instances
+
+```{python}
+instance_folder = os.path.join(FOLDER_DATA_RAW_INSTANCES, "darp_cordeau_2006")
+instance_filenames = os.listdir(instance_folder)
+
+result_folder = os.path.join(FOLDER_RESULTS, "darp_mip")
+os.makedirs(result_folder, exist_ok=True)
+```
+
+- Determines the folder where DARP instances are stored and lists all files in it.
+- Creates a results folder for storing the output, avoiding errors if the folder already exists (`exist_ok=True`).
+
+### Main Processing Loop
+
+```{python}
+for filename in instance_filenames:
+    logger.info(filename)
+    filepath = os.path.join(instance_folder, filename)
+    instance = instance_parser.parse_instance_from_filepath(
+        filepath, instance_parser=instance_parser.PARSER_TYPE_CORDEAU
+    )
+
+    model = Darp(**instance.get_data())
+    model.build()
+    result = model.solve()
+    
+    logger.info(result["solver"]["sol_objvalue"])
+
+    solution_obj = solution_parser.parse_solution_dict(result)
+    
+    sol_filepath = f"{os.path.join(result_folder, filename)}.json"
+    with open(sol_filepath, "w") as outfile:
+        json.dump(result, outfile, indent=4)
+    
+    fig, ax = route_plot.plot_vehicle_routes(
+        instance,
+        solution_obj,
+        jointly=True,
+        figsize=(10, 10),
+        show_arrows=False,
+        show_node_labels=False,
+    )
+
+    fig_filepath = f"{os.path.join(result_folder, filename)}.pdf"
+    fig.savefig(fig_filepath, bbox_inches="tight")
+```
+
+- Iterates over each DARP instance file.
+- Parses the instance and creates a DARP model.
+- Solves the model and logs the solution's objective value.
+- Parses the solution and saves it as a JSON file.
+- Plots the vehicle routes and saves the plot as a PDF file.
+
+---
+
+This {python} documentation provides a detailed overview of the script, explaining each section and its purpose in the context of solving and visualizing DARP instances.

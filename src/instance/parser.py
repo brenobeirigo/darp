@@ -1,7 +1,6 @@
 from ..model.Request import Request
 from ..model.Vehicle import Vehicle
-from ..instance.Instance import Instance
-import numpy as np
+from ..instance.Instance import Instance, InstanceConfig
 import itertools
 
 
@@ -71,7 +70,7 @@ def parse_request_line(pickup_node_line, dropoff_node_line, max_ride_time):
 
 
 def parse_request_lines(request_lines, max_ride_time):
-    requests = list()
+    requests = []
     n_customers = len(request_lines) // 2
 
     for i in range(n_customers):
@@ -150,28 +149,29 @@ def cordeau_parser(instance_path):
 
     with open(instance_path, "r") as file:
         lines = file.readlines()
-
-        config_dict = get_config_dict(lines[0])
+        print("first line", *map(int,lines[0].split()))
+        config = InstanceConfig(*map(int,lines[0].split()))
+        print(config)
 
         o_depot = lines[1]
         d_depot = lines[-1]
         request_lines = lines[2:-1]
 
         vehicles = [
-            parse_vehicle(o_depot, d_depot, config_dict["vehicle_capacity"])
-            for _ in range(config_dict["n_vehicles"])
+            parse_vehicle(o_depot, d_depot, config.vehicle_capacity)
+            for _ in range(config.n_vehicles)
         ]
 
 
         requests = parse_request_lines(
-            request_lines, config_dict["maximum_ride_time_min"]
+            request_lines, config.maximum_ride_time_min
         )
 
         nodes = get_node_list(requests, vehicles)
 
         dist_matrix = parse_dist_matrix_from_node_points(nodes)
 
-        return vehicles, requests, nodes, dist_matrix, config_dict
+        return vehicles, requests, nodes, dist_matrix, config
     
 def ropke_parser(instance_path):
 
@@ -185,13 +185,13 @@ def ropke_parser(instance_path):
         request_lines = lines[2:]
 
         vehicles = [
-            parse_vehicle(o_depot, d_depot, config_dict["vehicle_capacity"])
-            for _ in range(config_dict["n_vehicles"])
+            parse_vehicle(o_depot, d_depot, config_dict.vehicle_capacity)
+            for _ in range(config_dict.n_vehicles)
         ]
 
 
         requests = parse_request_lines(
-            request_lines, config_dict["maximum_ride_time_min"]
+            request_lines, config_dict.maximum_ride_time_min
         )
 
         nodes = get_node_list(requests, vehicles)
@@ -199,27 +199,6 @@ def ropke_parser(instance_path):
         dist_matrix = parse_dist_matrix_from_node_points(nodes)
 
         return vehicles, requests, nodes, dist_matrix, config_dict
-
-
-def get_config_dict(config_line):
-
-    config = map(int, np.array(config_line.split()))
-    (
-        n_vehicles,
-        n_customers,
-        time_horizon_min,
-        vehicle_capacity,
-        maximum_ride_time_min,
-    ) = config
-
-    config_dict = dict(
-        n_vehicles=n_vehicles,
-        n_customers=n_customers,
-        time_horizon_min=time_horizon_min,
-        vehicle_capacity=vehicle_capacity,
-        maximum_ride_time_min=maximum_ride_time_min,
-    )
-    return config_dict
 
 
 parsers = {PARSER_TYPE_CORDEAU: cordeau_parser, PARSER_TYPE_ROPKE: ropke_parser}
@@ -230,10 +209,8 @@ def parse_instance_from_filepath(
     vehicles, requests, nodes, dist_matrix, config_dict = parsers[
         instance_parser
     ](instance_filepath)
-    config_dict["type"] = instance_parser
-    config_dict["path"] = instance_filepath
 
-    return Instance(vehicles, requests, nodes, dist_matrix, config_dict)
+    return Instance(vehicles, requests, nodes, dist_matrix, config_dict, instance_filepath, instance_parser)
 
 
 # dist = defaultdict(dict)

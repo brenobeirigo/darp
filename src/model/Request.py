@@ -1,10 +1,10 @@
-from ..model.Node import PickupNode, DropoffNode
+from ..model.node import PickupNode, DropoffNode
 from ..model.TimeWindow import TimeWindow
 import math
 
 class Request:
     
-    count = 0
+    count = 1
     def __str__(self) -> str:
         return (
             f"{self.alias:>2}[{self.load}, ⧖{self.pickup_delay}/{self.dropoff_delay}]"
@@ -14,7 +14,7 @@ class Request:
     
     @staticmethod
     def cleanup():
-        Request.count = 0
+        Request.count = 1
         
     def __repr__(self) -> str:
         return self.__str__()

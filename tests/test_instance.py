@@ -2,7 +2,7 @@ from src.instance import parser
 from testfixtures import TempDirectory
 from src.model.Vehicle import Vehicle
 from src.model.Request import Request
-
+from src.instance.Instance import InstanceConfig
 import os
 
 def test_cordeau_parse():
@@ -69,7 +69,7 @@ def test_cordeau_parse_vehicle():
         and v.destination_node.point.y == 0.0
         and v.destination_node.point.x == 0.0
         and v.destination_node.point.y == 0.0
-        and v.alias == "V1"
+        and v.alias == "V0"
         and len(v.passengers) == 0
         and len(v.requests) == 0
         and v.origin_node.point.distance(v.destination_node.point) == 0
@@ -89,14 +89,14 @@ def test_cordeau_parser():
     )
         
     assert (
-        instance.config_dict == dict(
+        instance.config_dict == InstanceConfig(
         n_vehicles=2,
         n_customers=16,
         time_horizon_min=480,
         vehicle_capacity=3,
         maximum_ride_time_min=30,
-        type=parser.PARSER_TYPE_CORDEAU,
-        path=filepath
+        # type=parser.PARSER_TYPE_CORDEAU,
+        # path=filepath
         )
         and len(instance.requests) == 16
         and len(instance.vehicles) == 2

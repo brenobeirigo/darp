@@ -6,7 +6,7 @@ class Node:
     
     def __init__(self, pos, point=None, alias=None):
         self.id = Node.count
-        self.alias = (alias if alias else self.id)
+        self.alias = alias or self.id
         self.pos = pos
         self.point = (Point(point) if point is not None else None)
         self.arrival = None
@@ -60,12 +60,12 @@ class PickupNode(Node):
         return self.request.pickup_delay
     
     def __str__(self) -> str:
-        return super().__str__() + str(str(self.tw))
+        return super().__str__() + str(self.tw)
     
 class DropoffNode(Node):
     
     def __init__(self, pos, request, point=None):
-        super().__init__(pos, point=point, alias=request.alias + "'")
+        super().__init__(pos, point=point, alias=f"{request.alias}'")
         self.request = request
     
     @property

@@ -1,0 +1,5 @@
+{
+    "FOLDER_DATA_RAW_INSTANCES": "data/raw/darp_instances",
+    "FOLDER_RESULTS": "data/results",
+    "FILEPATH_DATA_SOURCE": "src/data/benchmark_instances.csv"
+}

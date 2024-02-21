@@ -4,6 +4,7 @@ __pycache__/
 .vscode/
 instance/data/
 meta/
-envor/
+.venv/
+.venvwin/
 data/raw/
 data/results/

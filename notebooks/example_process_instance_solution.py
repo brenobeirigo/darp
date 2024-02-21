@@ -7,7 +7,7 @@ from src.instance import parser as instance_parser
 from src.solution import parser as solution_parser
 from pprint import pprint
 import os
-from src.model.Node import DropoffNode
+from src.model.node import DropoffNode
 '''
 1 D:     84.33 Q:      2.00 W:       8.37 T:     30.22  0 (b:188.54; t:0.00; q:0.00) 10 (w:0.00 a:191.99; t:0.00; q:1.00) 11 (w:0.00 a:202.58; t:0.00; q:2.00) 35 (w:0.00 a:215.00; t:2.42; q:1.00) 34 (w:33.49 a:260.00; t:58.01; q:0.00) 0 (w:0.00 a:272.87; t:0.00; q:0.00)
 2 D:    351.65 Q:      3.00 W:       5.21 T:     40.15  0 (b:148.08; t:0.00; q:0.00) 14 (w:0.00 a:152.00; t:0.00; q:1.00) 22 (w:9.70 a:177.00; t:0.00; q:2.00) 3 (w:13.18 a:203.83; t:0.00; q:3.00) 27 (w:0.00 a:215.76; t:1.92; q:2.00) 46 (w:0.00 a:234.91; t:47.91; q:1.00) 38 (w:0.00 a:252.00; t:90.00; q:0.00) 12 (w:70.83 a:333.70; t:0.00; q:1.00) 24 (w:0.00 a:344.44; t:0.00; q:2.00) 48 (w:0.00 a:362.56; t:8.12; q:1.00) 6 (w:0.00 a:373.67; t:0.00; q:2.00) 36 (w:0.00 a:391.55; t:47.85; q:1.00) 15 (w:0.00 a:404.99; t:0.00; q:2.00) 18 (w:0.00 a:417.69; t:0.00; q:3.00) 30 (w:0.00 a:432.00; t:48.33; q:2.00) 21 (w:0.00 a:444.96; t:0.00; q:3.00) 39 (w:0.00 a:457.75; t:42.76; q:2.00) 42 (w:0.00 a:471.54; t:43.84; q:1.00) 45 (w:0.00 a:485.61; t:30.65; q:0.00) 0 (w:0.00 a:499.72; t:0.00; q:0.00)
@@ -42,7 +42,7 @@ instance = instance_parser.parse_instance_from_filepath(
         os.path.join(root, input_filepath),
         instance_parser=instance_parser.PARSER_TYPE_ROPKE)
 
-print(instance.config_dict)
+print(instance.config)
 
 print(instance)
 

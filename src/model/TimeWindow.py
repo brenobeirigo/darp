@@ -1,7 +1,9 @@
+from dataclasses import dataclass
+
+@dataclass
 class TimeWindow:
-    def __init__(self, earliest, latest):
-        self.earliest = earliest
-        self.latest = latest
+    earliest: int
+    latest: int
     
     def __str__(self) -> str:
         return f"({self.earliest:<4}, {self.latest:<4})"

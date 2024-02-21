@@ -1,0 +1,203 @@
+
+## Solving the Dial-A-Ride Problem (DARP)
+
+
+```{python}
+import os
+import sys
+from pathlib import Path
+from pprint import pprint
+import pandas as pd
+import re
+
+# Append the project's root directory to the system path
+sys.path.append("../")
+
+# Importing necessary modules from the project
+from src.instance import parser as instance_parser, Instance
+```
+
+```{python}
+FOLDER_DATA_RAW_INSTANCES = "../data/raw/darp_instances"
+FOLDER_RESULTS = "../data/results"
+FILEPATH_DATA_SOURCE = "../src/data/benchmark_instances.csv"
+```
+
+## List of Instances
+
+```{python}
+instances = pd.read_csv(FILEPATH_DATA_SOURCE)
+instances
+```
+
+
+## List of Downloaded Instances
+
+```{python}
+print(f"Instance folders at '{FOLDER_DATA_RAW_INSTANCES}':")
+pprint(os.listdir(FOLDER_DATA_RAW_INSTANCES))
+```
+### Load and Process Instances
+
+In this example, we focus on instances from "darp_cordeau_2006":
+```{python}
+instance_folder = Path(FOLDER_DATA_RAW_INSTANCES) / "darp_cordeau_2006"
+instance_filenames = os.listdir(instance_folder)
+pprint(instance_filenames)
+```
+result_folder = os.path.join(FOLDER_RESULTS, "darp_mip")
+os.makedirs(result_folder, exist_ok=True)
+
+
+- Determines the folder where DARP instances are stored and lists all files in it.
+- Creates a results folder for storing the output, avoiding errors if the folder already exists (`exist_ok=True`).
+
+### Converting All Instances To Instance Objects
+
+```{python}
+
+instances : list[Instance] = list()
+
+for filename in instance_filenames[:1]:
+    filepath = Path(instance_folder) / filename
+    if re.match(r"[a|b]\d*-\d*$", filename):
+        print(f"Converting instance '{filename}'...")
+        instance = instance_parser.parse_instance_from_filepath(
+            filepath, instance_parser=instance_parser.PARSER_TYPE_CORDEAU
+        )
+        instances.append(instance)
+```
+
+The first instance:
+
+```{python}
+
+i1 : Instance = instances[0]
+print(i1)
+```
+
+```{python}
+i1.get_data()
+```
+
+The instance data:
+```{python}
+pprint(instances[0].vehicles)
+pprint(instances[0].requests)
+pprint(instances[0].nodes)
+pprint(instances[0].dist_matrix)
+pprint(instances[0].config_dict)
+```
+
+### DataFrame of Node Data
+
+```{python}
+i1.nodeset_df
+```
+
+## Solving the Instance
+
+```{python}
+from src.solver.darp import Darp
+
+model = Darp(**i1.get_data())
+model.build()
+result = model.solve()
+pprint(result)
+
+```
+
+### Parsing the Instance Solution
+
+```{python}
+import src.solution.parser as sp
+from src.solution.Solution import Solution
+solution_obj : Solution  = sp.parse_solution_dict(result)
+pprint(solution_obj)
+```
+
+### A Single Vehicle Solution
+```{python}
+from src.solution.Solution import VehicleSolution
+v0_sol : VehicleSolution = solution_obj.vehicle_routes[0]
+print(v0_sol)
+```
+
+## Plotting the Solution
+
+```{python}
+from src.plot.route import plot_vehicle_route # Single vehicle plot
+from src.plot.route import plot_vehicle_routes # Fleet plot
+```
+
+### Plotting a Single Vehicle Route
+
+To plot a vehicle's route, its sequence is needed, togetuer with the node id dictionary (for information on node's positions):
+
+```{python}
+v0_sol.visits
+```
+
+```{python}
+i1.node_id_dict
+```
+
+```{python}
+import matplotlib.pyplot as plt
+
+fig, ax =  plt.subplots(1)
+
+plot_vehicle_route(
+    ax,
+    v0_sol.visits,
+    i1.node_id_dict,
+    show_arrows=True,
+    show_node_labels=True,
+    route_color="m",
+    linestyle="-",
+    linewidth=0.5,
+    arrowstyle='-|>'
+)
+```
+
+### Plotting the Whole Fleet Routes
+
+With `jointly=True` all vehicles are shown in a single plot:
+
+```{python}
+fig, ax = plot_vehicle_routes(
+    i1,
+    solution_obj,
+    jointly=True,
+    figsize=(10, 10),
+    show_arrows=True,
+    show_node_labels=False,
+)
+```
+
+With `jointly=False` all vehicles are shown in a different plot:
+
+```{python}
+fig, ax = plot_vehicle_routes(
+    i1,
+    solution_obj,
+    jointly=False,
+    # Adjusted figsize for the number of vehicles
+    figsize=(5, 5 * len(i1.vehicles)),
+    show_arrows=True,
+    show_node_labels=True,
+    linestyle="-",
+    linewidth=0.5,
+    arrowstyle='-|>'
+)
+```
+
+
+```{python}
+sol_filepath = f"{os.path.join(result_folder, filename)}.json"
+with open(sol_filepath, "w") as outfile:
+    json.dump(result, outfile, indent=4)
+
+fig_filepath = f"{os.path.join(result_folder, filename)}.pdf"
+fig.savefig(fig_filepath, bbox_inches="tight")
+```
