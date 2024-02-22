@@ -131,7 +131,7 @@ for v_sol in solution.vehicle_routes:
         
         b += n.b-node.tw.earliest
         
-        departure = node.arrival + node.service_delay
+        departure = node.arrival + node.service_duration
         B_i = max(node.arrival, node.tw.earliest)
         v_W = B_i - node.arrival
         vehicle_waiting += v_W
@@ -169,11 +169,11 @@ for v_sol in solution.vehicle_routes:
     for o, d in zip(v_sol.visits[:-1], v_sol.visits[1:]):
         n_o = instance.node_id_dict[o.id]
         n_d = instance.node_id_dict[d.id]
-        departure = o.b + n_o.service_delay
+        departure = o.b + n_o.service_duration
         node_waiting = o.b - n_o.tw.earliest
         dist = instance.dist_matrix[n_o.pos][n_d.pos]
         cost+=dist
-        print(f"arrival({o.id:>6}) = {arrival:8.3f} / {o.b:7.3f} (w:{vehicle_waiting_node:>8.3f}) \t\t departure({o.id:>6}) = {departure:8.3f} \t\t dist({o.id:>6},{d.id:>6}) = {dist:7.3f} / ({total_distance:7.3f}) + d[{o.id:>6}] = {n_o.service_delay:7.3f} \t\t ({n_o.tw.earliest:7},{n_d.tw.latest:7}) \t\t node w: {node_waiting:7.3f} \t\t cost: {cost:7.3f}")
+        print(f"arrival({o.id:>6}) = {arrival:8.3f} / {o.b:7.3f} (w:{vehicle_waiting_node:>8.3f}) \t\t departure({o.id:>6}) = {departure:8.3f} \t\t dist({o.id:>6},{d.id:>6}) = {dist:7.3f} / ({total_distance:7.3f}) + d[{o.id:>6}] = {n_o.service_duration:7.3f} \t\t ({n_o.tw.earliest:7},{n_d.tw.latest:7}) \t\t node w: {node_waiting:7.3f} \t\t cost: {cost:7.3f}")
         arrival = departure + dist
         vehicle_waiting_node = d.b - arrival
         vehicle_waiting += vehicle_waiting_node
@@ -181,9 +181,9 @@ for v_sol in solution.vehicle_routes:
 
 
     n_d = instance.node_id_dict[d.id]
-    departure = d.b + n_d.service_delay
+    departure = d.b + n_d.service_duration
     node_waiting = d.b - n_d.tw.earliest
-    print(f"arrival({d.id:>6}) = {arrival:8.3f} / {d.b:7.3f} (w:{vehicle_waiting_node:>8.3f}) \t\t departure({d.id:>6}) = {departure:8.3f} \t\t dist({d.id:>6},{0:>6}) = {0:7.3f} / ({total_distance:7.3f}) + d[{d.id:>6}] = {n_d.service_delay:7.3f} \t\t ({0:7},{n_d.tw.latest:7}) \t\t node w: {node_waiting:7.3f} \t\t cost: {cost:7.3f}")
+    print(f"arrival({d.id:>6}) = {arrival:8.3f} / {d.b:7.3f} (w:{vehicle_waiting_node:>8.3f}) \t\t departure({d.id:>6}) = {departure:8.3f} \t\t dist({d.id:>6},{0:>6}) = {0:7.3f} / ({total_distance:7.3f}) + d[{d.id:>6}] = {n_d.service_duration:7.3f} \t\t ({0:7},{n_d.tw.latest:7}) \t\t node w: {node_waiting:7.3f} \t\t cost: {cost:7.3f}")
 
     
             #print(n_o, n_o.service_delay, o, " - delay:", o.b-n_o.tw.earliest, "   →   ", n_d, n_d.service_delay, d, " - delay:", d.b-n_d.tw.earliest, " - DIST: ", dist, delay_node, earliest_vehicle)

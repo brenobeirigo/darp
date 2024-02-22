@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.collections as mc
 import matplotlib.patches as patches
 from matplotlib.lines import Line2D
-from ..model.node import PickupNode, DropoffNode
+from ..model.node import PickupNode, DropoffNode, Node
 
 
 ### Constant Colors
@@ -86,12 +86,12 @@ def plot_nodes(axis, node_xy_coords, node_colors):
 #### Plot Node Labels
 
 
-def plot_node_labels(axis, nodes):
+def plot_node_labels(axis, nodes:list[Node]):
     """
     Plot labels for nodes.
     """
     for n in nodes:
-        axis.annotate(n.alias, xy=n.xy_coord, fontsize=9, xytext=np.array(n.xy_coord) + 0.05)
+        axis.annotate(f"{n.alias}({n.tw.earliest}/{n.arrival}/{n.tw.latest})", xy=n.xy_coord, fontsize=9, xytext=np.array(n.xy_coord) + 0.05)
 
 
 #### Set Axis Limits
@@ -132,7 +132,7 @@ def plot_legend(axis):
 #### Plot Vehicle Route
 
 
-def plot_vehicle_route(axis, visits, node_id_dict, route_color='k', coord_box=(-10, 10, -10, 10), 
+def plot_vehicle_route(axis, visits, node_id_dict:dict[int, Node], route_color='k', coord_box=(-10, 10, -10, 10), 
                        show_arrows=True, show_nodes=True, show_node_labels=True, 
                        arrowstyle='->', linestyle='--', linewidth=1, show_legend=True, 
                        x_title="x", y_title="y"):

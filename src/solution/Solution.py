@@ -4,6 +4,7 @@
 from typing import OrderedDict
 from ..model.node import DropoffNode, PickupNode
 from collections import OrderedDict
+from dataclasses import dataclass
 
 VEHICLE_ROUTE_PATTERN_PARRAGH = (
     "(\d*)[\t ]"
@@ -26,63 +27,52 @@ NODE_PATTERN_PARRAGH = (
 )
 
 
-class Solution:
-    def __init__(
-        self,
-        cost,
-        total_duration,
-        total_waiting,
-        total_transit,
-        avg_waiting=None,
-        avg_transit=None,
-        vehicle_solutions=None,
-    ):
-        self.cost = cost
-        self.total_duration = total_duration
-        self.total_waiting = total_waiting
-        self.total_transit = total_transit
-        self.vehicle_routes = vehicle_solutions
-        self.avg_transit = avg_transit
-        self.avg_waiting = avg_waiting
-
-    def __repr__(self):
-        avg_w = (
-            f"avg_waiting={self.avg_waiting:10.4f}, "
-            if self.avg_waiting
-            else ""
-        )
-        avg_t = (
-            f", avg_transit={self.avg_transit:10.4f}"
-            if self.avg_transit
-            else ""
-        )
-
+@dataclass
+class NodeData:
+    id: int
+    w: float
+    b: float
+    t: float
+    q: float
+    
+    def __repr__(self) -> str:
         return (
-            "Solution("
-            f"total_cost={self.cost:10.4f}, "
-            f"total_duration={self.total_duration:10.4f}, "
-            f"total_waiting={self.total_waiting:10.4f}, {avg_w}"
-            f"total_transit={self.total_transit:10.4f} {avg_t}"
-            ")"
+            f"{self.id} ("
+            f"w: {self.w:6.2f}; "
+            f"b: {self.b:6.2f}; "
+            f"t: {self.t:6.2f}; "
+            f"q: {self.q:6.2f})"
         )
 
+@dataclass     
+class VehicleData:
+    id: int
+    D: float # Duration = Departure 1st node - Arrival last node
+    Q: float  # Max. load vehicle
+    W: float
+    W_avg: float # Avg. waiting at PUDO nodes (vehicle arrived earlier than earliest time)
+    T: float
+    T_avg: float # Avg. transit time
+    route: list[NodeData]
+    
+    
+    
+    def __repr__(self):
+        visits = " ".join(map(str, self.route))
+        return (
+            f"{self.id} "
+            f"D:   {self.D:10.4f} "
+            f"Q: {self.Q:>2} "
+            f"W:    {self.W:10.4f} "
+            f"T:    {self.T:10.4f} "
+            f"{visits}"
+        )
 
-class VehicleSolution:
-    def __init__(self, id_vehicle, D, Q, W, T, visits, instance=None):
-        self.id = id_vehicle
-        # Duration = Departure 1st node - Arrival last node
-        self.D = D
-        # Max. load vehicle
-        self.Q = Q
-        # Avg. waiting at pickup and delivery nodes (vehicle arrived earlier than earliest time)
-        self.W = W
-        # Avg. transit time
-        self.T = T
-        self.visits = visits
+    
+    def __post_init__(self):
         # 0 for pickups and >= for dropoffs
-        self.total_transit = sum([node.t for node in self.visits])
-        self.total_waiting = sum([node.w for node in self.visits])
-        self.instance = instance
+        self.total_transit = sum([node.t for node in self.route])
+        self.total_waiting = sum([node.w for node in self.route])
 
     def is_arrival_within_tw(self, node_instance, node_solution):
         # Arrives within time window
@@ -95,7 +85,7 @@ class VehicleSolution:
     def get_total_cost(self, dist_matrix):
         od_pos_pairs = [
             (o.id, d.id)
-            for o, d in zip(self.visits[:-1], self.visits[1:])
+            for o, d in zip(self.route[:-1], self.route[1:])
         ]
         cost = sum([dist_matrix[o][d] for o,d in od_pos_pairs])
         print("cost_r:", cost)
@@ -103,7 +93,7 @@ class VehicleSolution:
         return cost
     
     def get_total_duration(self):
-        duration = self.visits[-1].b - self.visits[0].b
+        duration = self.route[-1].b - self.route[0].b
         assert round(duration,2) == round(self.D, 2)
         return duration
 
@@ -209,7 +199,7 @@ class VehicleSolution:
         """
         io_node_dict = OrderedDict()
 
-        for node_solution in self.visits:
+        for node_solution in self.route:
 
             node_instance = instance.node_id_dict[node_solution.id]
 
@@ -226,31 +216,61 @@ class VehicleSolution:
 
         return io_node_dict
 
+@dataclass
+class SummaryData:
+    cost: float
+    total_duration: float
+    total_waiting: float
+    avg_waiting: float
+    total_transit: float
+    avg_transit: float
+
+@dataclass
+class SolutionData:
+    sol_objvalue: float
+    sol_cputime: float
+    graph_numedges: int
+    graph_numnodes: int
+    solver_numconstrs: int
+    solver_numvars: int
+    solver_numiterations: int
+    solver_numnodes: int
+
+@dataclass
+class FleetData:
+    K: dict[int, VehicleData]
+    summary: SummaryData
+    solver: SolutionData
+    
+
+@dataclass
+class Solution:
+    cost: float
+    total_duration: float
+    total_waiting: float
+    total_transit: float
+    avg_waiting: float
+    avg_transit: float
+    vehicle_solutions: dict[VehicleData]
+
     def __repr__(self):
-        visits = " ".join(map(str, self.visits))
-        return (
-            f"{self.id} "
-            f"D:   {self.D:10.4f} "
-            f"Q: {self.Q:>2} "
-            f"W:    {self.W:10.4f} "
-            f"T:    {self.T:10.4f} "
-            f"{visits}"
+        avg_w = (
+            f"avg_waiting={self.avg_waiting:10.4f}, "
+            if self.avg_waiting
+            else ""
+        )
+        
+        avg_t = (
+            f", avg_transit={self.avg_transit:10.4f}"
+            if self.avg_transit
+            else ""
         )
 
-
-class NodeSolution:
-    def __init__(self, id_node, w, b, t, q):
-        self.id = id_node
-        self.w = w
-        self.b = b
-        self.t = t
-        self.q = q
-
-    def __repr__(self):
         return (
-            f"{self.id} ("
-            f"w: {self.w:6.2f}; "
-            f"b: {self.b:6.2f}; "
-            f"t: {self.t:6.2f}; "
-            f"q: {self.q:6.2f})"
+            "Solution("
+            f"total_cost={self.cost:10.4f}, "
+            f"total_duration={self.total_duration:10.4f}, "
+            f"total_waiting={self.total_waiting:10.4f}, {avg_w}"
+            f"total_transit={self.total_transit:10.4f} {avg_t}"
+            ")"
         )

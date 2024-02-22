@@ -191,10 +191,16 @@ Set "a" considers small vehicle capacities and set "b" considers large vehicle c
 ## Solution
 
 - Vehicle id
-- D: Route total duration (e.g., for vehicle `3`: 466.708 - 98.245 = 368.56)
-- Q: Max. occupancy
-- W: Avg. total waiting at pickup and delivery nodes (vehicle arrived earlier than earliest time window)
-- T: Avg. transit time (total ride time / number of requests)
+- `D`: Route total duration (e.g., for vehicle `4`: 466.708 - 98.245 = 368.463)
+- `Q`: Max. occupancy
+- `W`: Avg. total waiting at pickup and delivery nodes (vehicle arrived earlier than earliest time window)
+- `T`: Avg. transit time (total ride time / number of requests)
+
+- Node id
+- `w`: Waiting at node (vehicle arrived before earliest arrival)
+- `b`: Arrival time
+- `t`: Ride delay (only at dropoff nodes)
+- `q`: Vehicle current capacity
 
 Excerpt of instance `pr02` solution:
 
@@ -216,7 +222,6 @@ Excerpt of instance `pr02` solution:
 ### Static vs. dynamic problems
 
 A 'static' vehicle routing problem is the traditional academic problem where jobs and drivers are 100% known prior to the delivery period starting, and a single plan can therefore be generated at the start of the period.
-
 
 ## Solver SCIP
 

@@ -14,7 +14,7 @@ import re
 sys.path.append("../")
 
 # Importing necessary modules from the project
-from src.instance import parser as instance_parser, Instance
+from src import parse_instance_from_filepath, Instance
 ```
 
 ```{python}
@@ -56,9 +56,7 @@ for filename in instance_filenames[:1]:
     filepath = Path(instance_folder) / filename
     if re.match(r"[a|b]\d*-\d*$", filename):
         print(f"Converting instance '{filename}'...")
-        instance = instance_parser.parse_instance_from_filepath(
-            filepath, instance_parser=instance_parser.PARSER_TYPE_CORDEAU
-        )
+        instance = parse_instance_from_filepath(filepath)
         instances.append(instance)
 ```
 
@@ -89,11 +87,6 @@ i1.nodeset_df
 ```
 
 
-```{python}
-i1.
-```
-
-
 ## Solving the Instance
 
 ```{python}
@@ -117,8 +110,8 @@ pprint(solution_obj)
 
 ### A Single Vehicle Solution
 ```{python}
-from src.solution.Solution import VehicleSolution
-v0_sol : VehicleSolution = solution_obj.vehicle_routes[0]
+from src.solution.Solution import VehicleData
+v0_sol: VehicleData = solution_obj.vehicle_solutions[0]
 print(v0_sol)
 ```
 
@@ -134,12 +127,33 @@ from src.plot.route import plot_vehicle_routes # Fleet plot
 To plot a vehicle's route, its sequence is needed, togetuer with the node id dictionary (for information on node's positions):
 
 ```{python}
-v0_sol.visits
+from src.solution.Solution import NodeData
+route:list[NodeData] = v0_sol.route
+route
 ```
 
 ```{python}
 i1.node_id_dict
 ```
+
+```{python}
+import pandas as pd
+nodes = i1.node_id_dict
+df = pd.DataFrame([[v.id, n.id, n.w, n.b, n.t, n.q] for v in solution_obj.vehicle_solutions for n in v.route], columns=["vehicle_id", "pos", "w", "b", "t", "q"])
+
+df = df.round(1).astype({"q":"int32"}).replace({"pos": "0*"}, 0)
+df
+```
+
+```{python}
+pd.merge(df, i1.nodeset_df, on="pos").sort_values(by=["vehicle_id", "b"])
+
+```
+```{python}
+df2 = pd.DataFrame([[i, n.id, n.tw.earliest, n.tw.latest, n.alias, n.x, n.y,] for i, n in i1.node_id_dict.items()], columns=["id", "node_id"])
+df2
+```
+
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -148,7 +162,7 @@ fig, ax =  plt.subplots(1)
 
 plot_vehicle_route(
     ax,
-    v0_sol.visits,
+    v0_sol.route,
     i1.node_id_dict,
     show_arrows=True,
     show_node_labels=True,

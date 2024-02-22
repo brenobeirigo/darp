@@ -32,7 +32,7 @@ class Vehicle:
     ):
         self.id = Vehicle.count
         self.alias = alias if alias else self.id
-        self.origin_node = OriginNode(node_o.id, self, point=node_o.point)
+        self.origin_node = OriginNode(node_o, self)
         self.node_o = node_o
         self.node_d = node_d
 
@@ -46,9 +46,9 @@ class Vehicle:
 
         if not open_trip:
             self.destination_node = (
-                DestinationNode(node_d.id, self, point=node_d.point)
+                DestinationNode(node_d, self)
                 if node_d is not None
-                else DestinationNode(node_o.id, self, point=node_o.point)
+                else DestinationNode(node_o, self)
             )
         else:
             self.destination_node = None

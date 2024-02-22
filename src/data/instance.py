@@ -61,9 +61,9 @@ class Instance:
     @property
     def nodeset_df(self):
         # Directly initialize DataFrame with specified data types
-        columns = ["id", "alias", "x", "y", "earliest", "latest"]
-        data = [[n.id, n.alias, n.x, n.y, *n.el] for n in self.nodes]
-        dtype = {'id': 'int32', "earliest": "int32", "latest": "int32"}
+        columns = ["id", "alias", "pos", "x", "y", "earliest", "latest"]
+        data = [[n.id, n.alias, n.pos, n.x, n.y, *n.el] for n in self.nodes]
+        dtype = {'id': 'int32', 'pos': 'int32', "earliest": "int32", "latest": "int32"}
 
         df = pd.DataFrame(data, columns=columns).astype(dtype)
 
@@ -81,7 +81,7 @@ class Instance:
             D=[n.pos for n in self.dropoff_nodes],
             L={r.pickup_node.pos: r.max_ride_time for r in self.requests},
             el={n.pos: n.el for n in self.nodes},
-            d={n.pos: n.service_delay for n in self.nodes},
+            d={n.pos: n.service_duration for n in self.nodes},
             q={n.pos: n.load for n in self.nodes},
             dist_matrix=self.dist_matrix_id,
             total_horizon=TOTAL_HORIZON,

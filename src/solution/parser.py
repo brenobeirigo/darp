@@ -1,5 +1,5 @@
 import re
-from ..solution.Solution import Solution, NodeSolution, VehicleSolution
+from ..solution.Solution import Solution, NodeData, VehicleData
 from pprint import pprint
 from ..solution.Solution import (
     NODE_PATTERN_PARRAGH,
@@ -29,7 +29,7 @@ def check_input_output(instance, solution):
         pprint(v.route)
 
 
-def get_list_of_vehicle_solutions_from_route(routes):
+def get_list_of_vehicle_solutions_from_route(routes) -> list[VehicleData]:
     vehicle_routes = []
     for r in routes:
         vehicle_sol = get_vehicle_solution_from_str(r)
@@ -43,13 +43,13 @@ def get_vehicle_solution_from_str(str):
 
     node_sol = get_node_solution_list_from_route_str(route)
 
-    vehicle_sol = VehicleSolution(
-        int(v_id), float(v_D), int(v_Q), float(v_W), float(v_T), node_sol
+    vehicle_sol = VehicleData(
+        int(v_id), float(v_D), int(v_Q), _, float(v_W), _, float(v_T), node_sol
     )
     return vehicle_sol
 
 
-def get_node_solution_list_from_route_str(str):
+def get_node_solution_list_from_route_str(str: str) -> list[NodeData]:
 
     nodes = re.findall(NODE_PATTERN_PARRAGH, str)
 
@@ -57,7 +57,7 @@ def get_node_solution_list_from_route_str(str):
     for node_id, w, b, t, q in nodes:
 
         node_sol.append(
-            NodeSolution(int(node_id), float(w), float(b), float(t), int(q))
+            NodeData(int(node_id), float(w), float(b), float(t), int(q))
         )
     return node_sol
 
@@ -93,30 +93,15 @@ def parse_solution_from_filepath(solution_filepath):
     return s
 
 def parse_solution_dict(result):
-    vehicle_routes = []
-    for v_id, v_data in result["fleet"]["K"].items():
-        v_D, v_Q, v_W, v_T = v_data["D"], v_data["Q"], v_data["W"], v_data["T"]
-        node_sol = []
-        for node_id, node_data in v_data["route"]:
-            node_sol.append(
-                NodeSolution(
-                    node_id,
-                    node_data["w"],
-                    node_data["b"],
-                    node_data["t"],
-                    node_data["q"]))
-            
-        vehicle_sol = VehicleSolution(v_id, v_D, v_Q, v_W, v_T, node_sol)
-        vehicle_routes.append(vehicle_sol)
-        
+   
     s = Solution(
-            result["fleet"]["summary"]["cost"],
-            result["fleet"]["summary"]["total_duration"],
-            result["fleet"]["summary"]["total_waiting"],
-            result["fleet"]["summary"]["total_transit"],
-            avg_transit=result["fleet"]["summary"]["avg_transit"],
-            avg_waiting=result["fleet"]["summary"]["avg_waiting"],
-            vehicle_solutions=vehicle_routes,
+            cost=result["fleet"]["summary"].cost,
+            total_duration=result["fleet"]["summary"].total_duration,
+            total_waiting=result["fleet"]["summary"].total_waiting,
+            total_transit=result["fleet"]["summary"].total_transit,
+            avg_waiting=result["fleet"]["summary"].avg_waiting,
+            avg_transit=result["fleet"]["summary"].avg_transit,
+            vehicle_solutions=list(result["fleet"]["K"].values()),
         )
     return s
 
@@ -132,7 +117,7 @@ def get_solution_cleaned_lines_from_filepath(solution_filepath):
     return output
 
 
-def get_list_of_vehicle_solutions(output):
+def get_list_of_vehicle_solutions(output) -> list[VehicleData]:
     # Lines for vehicle summary stats and routes. E.g.:
     # 0 D:	455.309 Q:	3 W:	7.1095 T:	53.0065	0 (w: 0; b: 85.2408; t: 0; q: 0) 44 (w: 0; b: 89; t: 0; q: 1) 20 (w: 29.7905; b: 131.026; t: 0; q: 2) 92 (w: 0; b: 142.205; t: 43.2055; q: 1) 38 (w: 0; b: 153.316; t: 0; q: 2) 27 (w: 0; b: 167; t: 0; q: 3) 68 (w: 15.4097; b: 195; t: 53.9744; q: 2) 86 (w: 0; b: 209.645; t: 46.3291; q: 1) 30 (w: 21.2879; b: 248; t: 0; q: 2) 75 (w: 0; b: 261.402; t: 84.4021; q: 1) 15 (w: 58.657; b: 334.401; t: 0; q: 2) 78 (w: 0; b: 348; t: 90; q: 1) 1 (w: 0; b: 359.092; t: 0; q: 2) 25 (w: 18.666; b: 390; t: 0; q: 3) 63 (w: 0; b: 405.759; t: 61.3586; q: 2) 4 (w: 0; b: 418.866; t: 0; q: 3) 52 (w: 0; b: 431.388; t: 2.52195; q: 2) 49 (w: 12.5978; b: 459; t: 89.9084; q: 1) 26 (w: 0; b: 473.387; t: 0; q: 2) 73 (w: 0; b: 488.611; t: 88.6115; q: 1) 74 (w: 0; b: 500.733; t: 17.3457; q: 0) 37 (w: 0; b: 512.889; t: 0; q: 1) 85 (w: 0; b: 528.304; t: 5.41463; q: 0) 0 (w: 0; b: 540.55; t: 0; q: 0)
     # 1 D:	373.95 Q:	3 W:	4.99494 T:	26.9578	0 (w: 0; b: 130.294; t: 0; q: 0) 32 (w: 0; b: 131.129; t: 0; q: 1) 3 (w: 0; b: 147.789; t: 0; q: 2) 51 (w: 0; b: 160.728; t: 2.93888; q: 1) 48 (w: 0; b: 173; t: 0; q: 2) 80 (w: 0; b: 184.506; t: 43.3773; q: 1) 18 (w: 0.02555; b: 195.577; t: 0; q: 2) 14 (w: 0; b: 205.873; t: 0; q: 3) 96 (w: 0; b: 216.958; t: 33.9584; q: 2) 66 (w: 0; b: 228; t: 22.4226; q: 1) 62 (w: 10.3861; b: 255; t: 39.1268; q: 0) 16 (w: 40.219; b: 307.726; t: 0; q: 1) 64 (w: 0; b: 318; t: 0.27413; q: 0) 5 (w: 49.2683; b: 382.143; t: 0; q: 1) 7 (w: 0; b: 393.097; t: 0; q: 2) 53 (w: 0; b: 414.597; t: 22.4541; q: 1) 33 (w: 0; b: 430; t: 0; q: 2) 55 (w: 0; b: 445.518; t: 42.4212; q: 1) 39 (w: 0; b: 462.033; t: 0; q: 2) 81 (w: 0; b: 481.006; t: 41.0057; q: 1) 87 (w: 0; b: 493.632; t: 21.5985; q: 0) 0 (w: 0; b: 504.244; t: 0; q: 0)

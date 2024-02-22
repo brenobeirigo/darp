@@ -56,7 +56,7 @@ instance0 = parse_instance_from_filepath(filepath)
 
 ```{python}
 
-from src.data import parser as instance_parser, Instance
+from src import Instance, parse_instance_from_filepath
 from pathlib import Path
 
 instances : list[Instance] = list()
@@ -65,8 +65,15 @@ for filename in instance_filenames[:1]:
     filepath = Path(instance_folder) / filename
     if re.match(r"[a|b]\d*-\d*$", filename):
         print(f"Converting instance '{filename}'...")
-        instance = instance_parser.parse_instance_from_filepath(
-            filepath, instance_parser=instance_parser.PARSER_TYPE_CORDEAU
-        )
+        instance = parse_instance_from_filepath(filepath)
         instances.append(instance)
+```
+
+```{python}
+darp_i0 : Instance = instances[0]
+pprint(darp_i0.get_data())
+```
+
+```{python}
+darp_i0.nodeset_df
 ```

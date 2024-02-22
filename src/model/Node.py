@@ -23,13 +23,15 @@ class Node:
     
     count = 0
     
-    def __init__(self, pos, point=None, alias=None):
+    def __init__(self, info: NodeInfo, alias=None):
         self.id = Node.count
         self.alias = alias or self.id
-        self.pos = pos
-        self.point = (Point(point) if point is not None else None)
+        self.pos = info.id
+        self.point = info.point
         self.arrival = None
         self.departure = None
+        self.service_duration = info.service_duration
+        self.tw = info.tw
         Node.count += 1
 
     @property
@@ -56,13 +58,9 @@ class Node:
     
 class PickupNode(Node):
     
-    def __init__(self, pos, request, point=None):
-        super().__init__(pos, point=point, alias=request.alias)
+    def __init__(self, info, request):
+        super().__init__(info, alias=request.alias)
         self.request = request
-    
-    @property
-    def tw(self):
-        return self.request.pickup_tw
     
     @property
     def load(self):
@@ -70,26 +68,16 @@ class PickupNode(Node):
     
     @property
     def el(self):
-        return (
-            self.tw.earliest,
-            self.tw.latest)
-    
-    @property
-    def service_delay(self):
-        return self.request.pickup_delay
-    
+        return (self.tw.earliest, self.tw.latest)
+
     def __str__(self) -> str:
         return super().__str__() + str(self.tw)
     
 class DropoffNode(Node):
     
-    def __init__(self, pos, request, point=None):
-        super().__init__(pos, point=point, alias=f"{request.alias}'")
+    def __init__(self, info, request):
+        super().__init__(info, alias=f"{request.alias}'")
         self.request = request
-    
-    @property
-    def tw(self):
-        return self.request.dropoff_tw
     
     @property
     def load(self):
@@ -101,22 +89,14 @@ class DropoffNode(Node):
             self.tw.earliest,
             self.tw.latest)
     
-    @property
-    def service_delay(self):
-        return self.request.dropoff_delay
-    
     def __str__(self) -> str:
         return super().__str__() + str(self.tw)
         
 class OriginNode(Node):
     
-    def __init__(self, pos, vehicle, point=None):
-        super().__init__(pos, point=point, alias=f"O({vehicle.alias})")
+    def __init__(self, info, vehicle):
+        super().__init__(info, alias=f"O({vehicle.alias})")
         self.vehicle = vehicle
-
-    @property
-    def tw(self):
-        return self.vehicle.origin_tw
     
     @property
     def load(self):
@@ -127,24 +107,15 @@ class OriginNode(Node):
         return (
             self.tw.earliest,
             self.tw.latest)
-    
-
-    @property
-    def service_delay(self):
-        return 0
     
     def __str__(self) -> str:
         return super().__str__() + str(self.tw)
     
 class DestinationNode(Node):
     
-    def __init__(self, pos, vehicle, point=None):
-        super().__init__(pos, point=point, alias=f"D({vehicle.alias})")
+    def __init__(self, info, vehicle):
+        super().__init__(info, alias=f"D({vehicle.alias})")
         self.vehicle = vehicle
-
-    @property
-    def tw(self):
-        return self.vehicle.destination_tw
     
     @property
     def load(self):
@@ -158,7 +129,3 @@ class DestinationNode(Node):
     
     def __str__(self) -> str:
         return super().__str__() + str(self.tw)
-    
-    @property
-    def service_delay(self):
-        return 0

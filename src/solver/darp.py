@@ -2,7 +2,10 @@ from collections import defaultdict, OrderedDict
 from ortools.linear_solver import pywraplp
 import logging
 logger = logging.getLogger('__main__'+ "." + __name__)
+from dataclasses import dataclass
 
+from ..solution.Solution import NodeData,FleetData,SolutionData,SummaryData,VehicleData
+    
 def get_node_set(P:list[str], D:list[str], origin_depot:str, destination_depot:str):
     
     return [origin_depot] + P + D + [destination_depot]
@@ -588,17 +591,19 @@ class Darp:
     @property
     def solver_numnodes_(self):
         return self.solver.nodes()
-    
+
+        
     @property
-    def sol_(self):
-        return dict(sol_objvalue=self.sol_objvalue_,
-                    sol_cputime=self.sol_cputime_,
-                    graph_numedges=self.graph_numedges_,
-                    graph_numnodes=self.graph_numnodes_,
-                    solver_numconstrs=self.solver_numconstrs_,
-                    solver_numvars=self.solver_numvars_,
-                    solver_numiterations=self.solver_numiterations_,
-                    solver_numnodes=self.solver_numnodes_)
+    def sol_(self) -> SolutionData:
+        return SolutionData(
+                    self.sol_objvalue_,
+                    self.sol_cputime_,
+                    self.graph_numedges_,
+                    self.graph_numnodes_,
+                    self.solver_numconstrs_,
+                    self.solver_numvars_,
+                    self.solver_numiterations_,
+                    self.solver_numnodes_)
 
     def var_B_sol(self, k, i):
         return self.var_B[k][i].solution_value()
@@ -717,7 +722,8 @@ class Darp:
                 if self.var_Q_sol(k, i) > k_max_load:
                     k_max_load = self.var_Q_sol(k, i)
                     
-                k_route_node_data[i] = dict(
+                k_route_node_data[i] = NodeData(
+                    id=i,
                     w=waiting_at_node_i,
                     b=self.var_B_sol(k,i),
                     t=ride_delay,
@@ -727,7 +733,8 @@ class Darp:
                 arrival = departure_from_node_i + self.dist(i,j)
                 
             # Arrival at final depot
-            k_route_node_data[k_route_node_ids[-1]] = dict(
+            k_route_node_data[k_route_node_ids[-1]] = NodeData(
+                id=k_route_node_ids[-1],
                 w=0,
                 b=self.var_B_sol(k,k_route_node_ids[-1]),
                 t=0,
@@ -735,14 +742,14 @@ class Darp:
             
             k_total_transit = 0
             k_total_waiting = 0
-            arrival_end_depot = k_route_node_data[k_route_node_ids[-1]]["b"]
-            arrival_start_depot = k_route_node_data[k_route_node_ids[0]]["b"]
+            arrival_end_depot = k_route_node_data[k_route_node_ids[-1]].b
+            arrival_start_depot = k_route_node_data[k_route_node_ids[0]].b
             k_total_duration = arrival_end_depot - arrival_start_depot
             
             for node_id in k_route_node_ids:
                 node_data = k_route_node_data[node_id]
-                k_total_transit += node_data['t']
-                k_total_waiting += node_data['w']
+                k_total_transit += node_data.t
+                k_total_waiting += node_data.w
             
             requests = set(k_route_node_ids).intersection(self.P)
             k_avg_waiting = k_total_waiting/(2*len(requests)) if requests else None
@@ -754,16 +761,17 @@ class Darp:
             total_cost+=k_total_cost
             
             
-            result["K"][k]=dict(
+            result["K"][k]=VehicleData(
+                id=k,
                 D=k_total_duration,
                 Q=k_max_load,
                 W=k_total_waiting,
                 W_avg=k_avg_waiting,
                 T=k_total_transit,
                 T_avg=k_avg_transit,
-                route=list(k_route_node_data.items()))
+                route=list(k_route_node_data.values()))
         
-        summary = dict(
+        summary = SummaryData(
             cost=total_cost,
             total_duration=total_duration,
             total_waiting=total_waiting,
@@ -775,7 +783,7 @@ class Darp:
             
         return result
 
-    def solve(self):
+    def solve(self) -> dict:
 
         status = self.solver.Solve()
 
