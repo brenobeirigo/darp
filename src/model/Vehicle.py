@@ -18,6 +18,9 @@ import math
 #         destination_earliest_time=d_earliest,
 #         destination_latest_time=d_latest,
 #     )
+
+
+        
 class Vehicle:
 
     count = 0

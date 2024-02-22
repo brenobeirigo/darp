@@ -55,6 +55,7 @@ class Darp:
         dist_matrix,
         total_horizon,
         destination_depot=None,
+        open_trip=False
     ):
         
         self.origin_depot = origin_depot
@@ -71,6 +72,7 @@ class Darp:
         self.q = q  # Amount loaded onto vehicle at node i (q_i = q_{n+i})
         self.el = el  # Earliest and latest times to reach nodes
 
+        # If destination depot is not set, create an artificial
         if destination_depot is None:
             self.destination_depot = f"{str(origin_depot)}*"
             self.q[self.destination_depot] = self.q[self.origin_depot]
@@ -115,7 +117,9 @@ class Darp:
                     self.K_N_valid[k].add(i)
 
         def wrapper_dist_matrix(i,j):
-            return 0 if j == self.destination_depot else dist_matrix[i][j]
+            # Trips to dummy aux. depot have no cost
+            is_trip_to_aux_depot = j == self.destination_depot and open_trip
+            return 0 if is_trip_to_aux_depot else dist_matrix[i][j]
 
         self.dist = wrapper_dist_matrix
 

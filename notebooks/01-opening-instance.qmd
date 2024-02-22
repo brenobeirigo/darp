@@ -132,26 +132,33 @@ route:list[NodeData] = v0_sol.route
 route
 ```
 
+
 ```{python}
-i1.node_id_dict
+i1.nodeset_df
 ```
 
 ```{python}
 import pandas as pd
-nodes = i1.node_id_dict
-df = pd.DataFrame([[v.id, n.id, n.w, n.b, n.t, n.q] for v in solution_obj.vehicle_solutions for n in v.route], columns=["vehicle_id", "pos", "w", "b", "t", "q"])
+df = pd.DataFrame([[v.id, n.id, n.w, n.b, n.t, n.q] for v in solution_obj.vehicle_solutions for n in v.route], columns=["vehicle_id", "id", "waiting", "arrival", "ride_time_delay", "vehicle_load"])
 
-df = df.round(1).astype({"q":"int32"}).replace({"pos": "0*"}, 0)
-df
+df = df.round(1).astype({"vehicle_load":"int32"})#.replace({"pos": "0*"}, 0)
+dists = []
+for o, d in zip(list(df_m.itertuples())[:-1], list(df_m.itertuples())[1:]):
+    dists.append(model.dist(o.id, d.id))
+df["distance_previous"] = [0] + dists
 ```
 
 ```{python}
-pd.merge(df, i1.nodeset_df, on="pos").sort_values(by=["vehicle_id", "b"])
-
+df_m = pd.merge(df, i1.nodeset_df, on="id", how="left").round(1)
+df_m["departure"] = df_m["arrival"] + df_m["service_duration"]
+df_m = df_m[["vehicle_id", "vehicle_load", "id", "alias", "x", "y", "distance_previous", "waiting", "earliest", "arrival", "latest", "service_duration", "departure"]]
+df_m
 ```
+
+
 ```{python}
-df2 = pd.DataFrame([[i, n.id, n.tw.earliest, n.tw.latest, n.alias, n.x, n.y,] for i, n in i1.node_id_dict.items()], columns=["id", "node_id"])
-df2
+df2 = pd.DataFrame([[i, n.id, n.tw.earliest, n.tw.latest, n.alias, n.x, n.y] for i, n in i1.node_id_dict.items()], columns=["id", "node_id"])
+df2.round(1)
 ```
 
 

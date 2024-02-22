@@ -14,17 +14,19 @@ class NodeInfo:
     earliest:int         
     latest:int
     type:NodeType
+    alias:str = None
     
     def __post_init__(self):
         self.point = Point(self.x, self.y)
         self.tw = TimeWindow(self.earliest, self.latest)
+        self.alias = self.alias or self.id
 
 class Node:
     
     count = 0
     
     def __init__(self, info: NodeInfo, alias=None):
-        self.id = Node.count
+        self.id = info.id
         self.alias = alias or self.id
         self.pos = info.id
         self.point = info.point
@@ -95,7 +97,7 @@ class DropoffNode(Node):
 class OriginNode(Node):
     
     def __init__(self, info, vehicle):
-        super().__init__(info, alias=f"O({vehicle.alias})")
+        super().__init__(info, alias=f"O")
         self.vehicle = vehicle
     
     @property

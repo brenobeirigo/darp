@@ -1,6 +1,6 @@
 from ..model.Request import Request
 from ..model.Vehicle import Vehicle
-from ..model.node import Node, OriginNode, PickupNode, DestinationNode, DropoffNode
+from ..model.node import Node, OriginNode, PickupNode, DestinationNode, DropoffNode, NodeInfo
 import pandas as pd
 from dataclasses import dataclass
 
@@ -17,7 +17,7 @@ class Instance:
         self,
         vehicles:list[Vehicle],
         requests:list[Request],
-        nodes:list[Node],
+        nodes:list[NodeInfo],
         config_dict:InstanceConfig,
         instance_filepath:str,
         instance_parser:str
@@ -29,41 +29,37 @@ class Instance:
         
         self.vehicle_id_dict = {v.id:v for v in self.vehicles}
         self.request_id_dict = {r.id:r for r in self.requests}
-        self.node_id_dict = {n.pos:n for n in self.nodes}
-        self.node_id_pos_dict = {n.id:n.pos for n in self.nodes}
+        # self.node_id_id_dict = {n.id:n.id for n in self.nodes}
 
         self.pickup_nodes = []
         self.dropoff_nodes = []
         self.destination_nodes = []
         self.origin_nodes = []
-
-        for n in self.nodes:
-            if type(n) == PickupNode:
-                self.pickup_nodes.append(n)
-            elif type(n) == DropoffNode:
-                self.dropoff_nodes.append(n)
-            elif type(n) == DestinationNode:
-                self.destination_nodes.append(n)
-            elif type(n) == OriginNode:
-                self.origin_nodes.append(n)
-
-        dist = {
-            o: {
-                d: self.node_id_dict[d_pos].point.distance(self.node_id_dict[o_pos].point)
-                for d, d_pos in self.node_id_pos_dict.items()
+        
+        for r in requests:
+            self.pickup_nodes.append(r.pickup_node)
+            self.dropoff_nodes.append(r.dropoff_node)
+        for v in vehicles:
+            self.destination_nodes.append(v.destination_node)
+            self.origin_nodes.append(v.origin_node)
+            
+                # self.node_id_dict = {n.id:n for n in self.nodes}
+        self.dist_matrix_id = {
+            o.id: {
+                d.id: o.point.distance(d.point)
+                for d in self.nodes
             }
-            for o, o_pos in self.node_id_pos_dict.items()
+            for o in self.nodes
         }
-        self.dist_matrix_id = dist
         
         self.__del__()
     
     @property
     def nodeset_df(self):
         # Directly initialize DataFrame with specified data types
-        columns = ["id", "alias", "pos", "x", "y", "earliest", "latest"]
-        data = [[n.id, n.alias, n.pos, n.x, n.y, *n.el] for n in self.nodes]
-        dtype = {'id': 'int32', 'pos': 'int32', "earliest": "int32", "latest": "int32"}
+        columns = ["id", "alias", "x", "y", "earliest", "latest", "service_duration"]
+        data = [[n.id, n.alias, n.x, n.y, n.tw.earliest, n.tw.latest, n.service_duration] for n in self.nodes]
+        dtype = {'id': 'int32', "earliest": "int32", "latest": "int32"}
 
         df = pd.DataFrame(data, columns=columns).astype(dtype)
 
@@ -74,15 +70,16 @@ class Instance:
     def get_data(self):
         TOTAL_HORIZON = 1440
         return dict(
-            origin_depot=self.vehicles[0].pos,
+            origin_depot=self.nodes[0].id,
             K=[v.id for v in self.vehicles],
             Q={v.id: v.capacity for v in self.vehicles},
-            P=[n.pos for n in self.pickup_nodes],
-            D=[n.pos for n in self.dropoff_nodes],
-            L={r.pickup_node.pos: r.max_ride_time for r in self.requests},
-            el={n.pos: n.el for n in self.nodes},
-            d={n.pos: n.service_duration for n in self.nodes},
-            q={n.pos: n.load for n in self.nodes},
+            P=[n.id for n in self.pickup_nodes],
+            D=[n.id for n in self.dropoff_nodes],
+            L={r.pickup_node.id: r.max_ride_time for r in self.requests},
+            el={n.id: (n.tw.earliest, n.tw.latest) for n in self.nodes},
+            d={n.id: n.service_duration for n in self.nodes},
+            q={n.id: n.load for n in self.nodes},
+            destination_depot=self.nodes[-1].id,
             dist_matrix=self.dist_matrix_id,
             total_horizon=TOTAL_HORIZON,
         )
