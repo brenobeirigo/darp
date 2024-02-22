@@ -14,19 +14,22 @@ class InstanceConfig:
   
 class Instance:
     def __init__(
-        self, vehicles, requests, nodes, dist_matrix, config_dict, instance_filepath, instance_parser
+        self,
+        vehicles:list[Vehicle],
+        requests:list[Request],
+        nodes:list[Node],
+        config_dict:InstanceConfig,
+        instance_filepath:str,
+        instance_parser:str
     ):
         self.config_dict = config_dict
-
         self.vehicles = vehicles
-        self.vehicle_id_dict = {v.id:v for v in self.vehicles}
-
         self.requests = requests
-        self.request_id_dict = {r.id:r for r in self.requests}
-
         self.nodes = nodes
+        
+        self.vehicle_id_dict = {v.id:v for v in self.vehicles}
+        self.request_id_dict = {r.id:r for r in self.requests}
         self.node_id_dict = {n.pos:n for n in self.nodes}
-
         self.node_id_pos_dict = {n.id:n.pos for n in self.nodes}
 
         self.pickup_nodes = []
@@ -46,13 +49,12 @@ class Instance:
 
         dist = {
             o: {
-                d: dist_matrix[o_pos][d_pos]
+                d: self.node_id_dict[d_pos].point.distance(self.node_id_dict[o_pos].point)
                 for d, d_pos in self.node_id_pos_dict.items()
             }
             for o, o_pos in self.node_id_pos_dict.items()
         }
         self.dist_matrix_id = dist
-        self.dist_matrix = dist_matrix
         
         self.__del__()
     
@@ -81,7 +83,7 @@ class Instance:
             el={n.pos: n.el for n in self.nodes},
             d={n.pos: n.service_delay for n in self.nodes},
             q={n.pos: n.load for n in self.nodes},
-            dist_matrix=self.dist_matrix,
+            dist_matrix=self.dist_matrix_id,
             total_horizon=TOTAL_HORIZON,
         )
 
@@ -99,3 +101,6 @@ class Instance:
         output += "\n\n### Vehicles:\n"
         output += "\n".join(map(str,self.vehicles))
         return output
+    
+    
+    

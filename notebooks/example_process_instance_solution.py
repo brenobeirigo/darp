@@ -3,7 +3,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 from config import FOLDER_DATA_RAW_INSTANCES
-from src.instance import parser as instance_parser
+from src.data import parser as instance_parser
 from src.solution import parser as solution_parser
 from pprint import pprint
 import os

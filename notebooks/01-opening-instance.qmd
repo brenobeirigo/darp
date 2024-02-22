@@ -43,14 +43,8 @@ In this example, we focus on instances from "darp_cordeau_2006":
 ```{python}
 instance_folder = Path(FOLDER_DATA_RAW_INSTANCES) / "darp_cordeau_2006"
 instance_filenames = os.listdir(instance_folder)
-pprint(instance_filenames)
+print(instance_filenames)
 ```
-result_folder = os.path.join(FOLDER_RESULTS, "darp_mip")
-os.makedirs(result_folder, exist_ok=True)
-
-
-- Determines the folder where DARP instances are stored and lists all files in it.
-- Creates a results folder for storing the output, avoiding errors if the folder already exists (`exist_ok=True`).
 
 ### Converting All Instances To Instance Objects
 
@@ -85,7 +79,6 @@ The instance data:
 pprint(instances[0].vehicles)
 pprint(instances[0].requests)
 pprint(instances[0].nodes)
-pprint(instances[0].dist_matrix)
 pprint(instances[0].config_dict)
 ```
 
@@ -94,6 +87,12 @@ pprint(instances[0].config_dict)
 ```{python}
 i1.nodeset_df
 ```
+
+
+```{python}
+i1.
+```
+
 
 ## Solving the Instance
 

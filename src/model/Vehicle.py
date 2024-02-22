@@ -1,31 +1,40 @@
 from collections import deque
-from ..model.node import OriginNode, DestinationNode
+from ..model.node import OriginNode, DestinationNode, NodeInfo
 from ..model.TimeWindow import TimeWindow
 from ..model.Route import Route
 import math
 
-
+# depot_o = parse_node_line(origin_line, node_type=NodeType.DEPOT_ORIGIN)
+#     depot_d = parse_node_line(destination_line, node_type=NodeType.DEPOT_DESTINATION)
+    
+#     return Vehicle(
+#         o_id,
+#         vehicle_capacity,
+#         origin_point=o_point,
+#         destination_id=d_id,
+#         destination_point=d_point,
+#         origin_earliest_time=o_earliest,
+#         origin_latest_time=o_latest,
+#         destination_earliest_time=d_earliest,
+#         destination_latest_time=d_latest,
+#     )
 class Vehicle:
 
     count = 0
 
     def __init__(
         self,
-        origin_id,
-        capacity,
-        origin_point=None,
-        origin_earliest_time=0,
-        origin_latest_time=math.inf,
-        open_trip=False,
-        destination_id=None,
-        destination_point=None,
-        destination_earliest_time=0,
-        destination_latest_time=math.inf,
+        node_o: NodeInfo,
+        node_d: NodeInfo,
+        capacity: int,
         alias="",
+        open_trip=False,
     ):
         self.id = Vehicle.count
         self.alias = alias if alias else self.id
-        self.origin_node = OriginNode(origin_id, self, point=origin_point)
+        self.origin_node = OriginNode(node_o.id, self, point=node_o.point)
+        self.node_o = node_o
+        self.node_d = node_d
 
         # In some contexts (Open VRP), a vehicle does not return to the
         # depot after servicing the last customer.
@@ -37,25 +46,30 @@ class Vehicle:
 
         if not open_trip:
             self.destination_node = (
-                DestinationNode(destination_id, self, point=destination_point)
-                if destination_id is not None
-                else DestinationNode(origin_id, self, point=origin_point)
+                DestinationNode(node_d.id, self, point=node_d.point)
+                if node_d is not None
+                else DestinationNode(node_o.id, self, point=node_o.point)
             )
         else:
             self.destination_node = None
 
         self.capacity = capacity
-        self.origin_tw = TimeWindow(origin_earliest_time, origin_latest_time)
-        self.destination_tw = TimeWindow(
-            destination_earliest_time, destination_latest_time
-        )
-        self.origin_node.arrival = origin_earliest_time
+        self.origin_node.arrival = node_o.earliest
         self.route = Route(self.origin_node)
         self.alias = alias if alias else f"V{str(self.id)}"
         self.passengers = deque(maxlen=self.capacity)
         self.requests = list()
 
         Vehicle.count += 1
+        
+    @property
+    def origin_tw(self):
+        return self.node_o.tw
+    
+    
+    @property
+    def destination_tw(self):
+        return self.node_d.tw
 
     @staticmethod
     def cleanup():

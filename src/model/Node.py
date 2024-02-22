@@ -1,4 +1,23 @@
 from shapely.geometry import Point
+from ..model.TimeWindow import TimeWindow
+
+from enum import Enum
+from dataclasses import dataclass
+NodeType = Enum('NodeType', ['DEPOT_ORIGIN', 'PU', 'DO', "DEPOT_DESTINATION"])
+@dataclass
+class NodeInfo:
+    id:int 
+    x:float         
+    y:float         
+    service_duration:int         
+    load:int         
+    earliest:int         
+    latest:int
+    type:NodeType
+    
+    def __post_init__(self):
+        self.point = Point(self.x, self.y)
+        self.tw = TimeWindow(self.earliest, self.latest)
 
 class Node:
     

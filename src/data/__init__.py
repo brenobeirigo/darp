@@ -1,0 +1,1 @@
+from .parser import parse_instance_from_filepath

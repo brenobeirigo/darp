@@ -1,0 +1,17 @@
+# Solving All Instances
+
+## Converting All Instances To Instance Objects
+
+```{python}
+
+instances : list[Instance] = list()
+
+for filename in instance_filenames[:1]:
+    filepath = Path(instance_folder) / filename
+    if re.match(r"[a|b]\d*-\d*$", filename):
+        print(f"Converting instance '{filename}'...")
+        instance = instance_parser.parse_instance_from_filepath(
+            filepath, instance_parser=instance_parser.PARSER_TYPE_CORDEAU
+        )
+        instances.append(instance)
+```

@@ -1,4 +1,4 @@
-from src.instance import parser
+from src.data import parser
 from testfixtures import TempDirectory
 from src.model.Vehicle import Vehicle
 from src.model.Request import Request
@@ -32,7 +32,7 @@ def test_cordeau_parse_request():
     dropoff_node_line = "17   6.687   6.731   4  -1  402  417"
     max_ride_time = 30
     
-    r = parser.parse_request_line(pickup_node_line, dropoff_node_line, max_ride_time)
+    r = parser.parse_request(pickup_node_line, dropoff_node_line, max_ride_time)
     
     assert (
         r.alias == "1"
@@ -87,6 +87,7 @@ def test_cordeau_parser():
     instance = parser.parse_instance_from_filepath(
         filepath, instance_parser=parser.PARSER_TYPE_CORDEAU
     )
+    print("InstanceX", instance)
         
     assert (
         instance.config_dict == InstanceConfig(

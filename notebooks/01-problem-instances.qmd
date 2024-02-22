@@ -1,0 +1,72 @@
+# Problem Instances
+
+```{python}
+import os
+import sys
+from pprint import pprint
+import pandas as pd
+import re
+
+# Append the project's root directory to the system path
+sys.path.append("../")
+```
+
+```{python}
+FOLDER_DATA_RAW_INSTANCES = "../data/raw/darp_instances"
+FOLDER_RESULTS = "../data/results"
+FILEPATH_DATA_SOURCE = "../src/data/benchmark_instances.csv"
+```
+
+## List of Instances
+
+```{python}
+instances = pd.read_csv(FILEPATH_DATA_SOURCE)
+instances
+```
+
+
+## List of Downloaded Instances
+
+```{python}
+print(f"Instance folders at '{FOLDER_DATA_RAW_INSTANCES}':")
+pprint(os.listdir(FOLDER_DATA_RAW_INSTANCES))
+```
+### Load and Process Instances
+
+In this example, we focus on instances from folder "darp_cordeau_2006":
+```{python}
+from pathlib import Path
+instance_folder = Path(FOLDER_DATA_RAW_INSTANCES) / "darp_cordeau_2006"
+instance_filenames = os.listdir(instance_folder)
+print(instance_filenames)
+```
+
+An instance looks as follows:
+
+```{python}
+from src.data import parse_instance_from_filepath
+
+filepath = Path(instance_folder) / instance_filenames[0]
+
+instance0 = parse_instance_from_filepath(filepath)
+
+```
+
+### Converting All Instances To Instance Objects
+
+```{python}
+
+from src.data import parser as instance_parser, Instance
+from pathlib import Path
+
+instances : list[Instance] = list()
+
+for filename in instance_filenames[:1]:
+    filepath = Path(instance_folder) / filename
+    if re.match(r"[a|b]\d*-\d*$", filename):
+        print(f"Converting instance '{filename}'...")
+        instance = instance_parser.parse_instance_from_filepath(
+            filepath, instance_parser=instance_parser.PARSER_TYPE_CORDEAU
+        )
+        instances.append(instance)
+```
