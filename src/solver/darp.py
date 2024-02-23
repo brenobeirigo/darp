@@ -2,9 +2,10 @@ from collections import defaultdict, OrderedDict
 from ortools.linear_solver import pywraplp
 import logging
 logger = logging.getLogger('__main__'+ "." + __name__)
-from dataclasses import dataclass
 
-from ..solution.Solution import NodeData,FleetData,SolutionData,SummaryData,VehicleData
+
+from ..data.instance import Instance
+from ..solution.Solution import NodeData,FleetData,SolutionData,SummaryData,VehicleData, Solution
     
 def get_node_set(P:list[str], D:list[str], origin_depot:str, destination_depot:str):
     
@@ -40,8 +41,16 @@ def get_arc_set(P:list[str], D:list[str], origin_depot:str, destination_depot:st
         set(loop_depot_arcs))
 
 
+
+
 class Darp:
-    def __init__(
+
+    def __init__(self, i:Instance):
+    
+        self.instance = i
+        self.init(**i.get_data())
+
+    def init(
         self,
         origin_depot,
         K,
@@ -612,6 +621,9 @@ class Darp:
     def var_B_sol(self, k, i):
         return self.var_B[k][i].solution_value()
     
+    def var_L_sol(self, k, i):
+        return self.var_L[k][i].solution_value()
+    
     def var_Q_sol(self, k, i):
         return self.var_Q[k][i].solution_value()
     
@@ -686,7 +698,8 @@ class Darp:
         #     f"total transit time: {sol["total_transit"]:7.2f} average: {sol["avg_transit"]:7.2f}\n"
         # )
     
-    def get_solution_dict(self):
+    
+    def get_solution(self):
         
         result = dict()
         total_cost = 0
@@ -694,7 +707,7 @@ class Darp:
         total_waiting = 0
         total_duration = 0
         
-        result["K"] = dict()
+        fleet_solution = dict()
         vehicle_routes_dict = self.get_vehicle_routes_dict()
         for k in self.K:
             
@@ -706,17 +719,18 @@ class Darp:
     
             k_total_cost = 0
             k_max_load = 0
-            k_edges = zip(k_route_node_ids[:-1], k_route_node_ids[1:])
+            k_edges = list(zip(k_route_node_ids[:-1], k_route_node_ids[1:]))
             arrival = 0
             for i,j  in k_edges:
                 k_total_cost+=self.dist(i, j)
                 ride_delay = 0
                 if i in self.D:
                     pickup_i = self.N[self.N.index(i) -self.n]
-                    arrival_at_pickup = self.var_B_sol(k,pickup_i)
-                    departure_at_pickup = arrival_at_pickup + self.d[pickup_i]
-                    ride_delay = self.var_B_sol(k,i) - departure_at_pickup
-
+                    # arrival_at_pickup = self.var_B_sol(k,pickup_i)
+                    # departure_at_pickup = arrival_at_pickup + self.d[pickup_i]
+                    # ride_delay = self.var_B_sol(k,i) - departure_at_pickup
+                    ride_delay = self.var_L_sol(k, pickup_i)
+                    # assert ride_delay == self.var_L_sol(k, pickup_i)
                     #print("index:", self.N.index(i), self.n, "from:", pickup_i,  "   to:", i,  "   shortest_delay:", shortest_delay,  "   transit_time:", transit_time,  "   ride_delay:", ride_delay)
 
                 departure_from_node_i = self.var_B_sol(k,i) + self.d[i]
@@ -765,7 +779,7 @@ class Darp:
             total_cost+=k_total_cost
             
             
-            result["K"][k]=VehicleData(
+            fleet_solution[k]=VehicleData(
                 id=k,
                 D=k_total_duration,
                 Q=k_max_load,
@@ -783,20 +797,21 @@ class Darp:
             total_transit=total_transit,
             avg_transit=total_transit/len(self.K))
             
-        result["summary"] = summary
+        
             
-        return result
+        return Solution(
+            instance=self.instance,
+            summary=summary,
+            solver_solution=self.sol_,
+            vehicle_solutions=fleet_solution)
 
-    def solve(self) -> dict:
+    def solve(self) -> Solution:
 
         status = self.solver.Solve()
 
         if status == pywraplp.Solver.OPTIMAL:
-            
-            self.solution_ = dict(
-                fleet=self.get_solution_dict(),
-                solver=self.sol_)
-
+            self.solution_ = self.get_solution()
+                
             logger.debug("# Flow variables:")
             flow_edges = self.get_flow_edges()
             for k,i,j in flow_edges:

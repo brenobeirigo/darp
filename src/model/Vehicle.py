@@ -1,11 +1,9 @@
 from collections import deque
 from ..model.node import OriginNode, DestinationNode, NodeInfo
-from ..model.TimeWindow import TimeWindow
 from ..model.Route import Route
-import math
 
-# depot_o = parse_node_line(origin_line, node_type=NodeType.DEPOT_ORIGIN)
-#     depot_d = parse_node_line(destination_line, node_type=NodeType.DEPOT_DESTINATION)
+# depot_o = parse_node_line(origin_line, node_type=NodeType.O_DEPOT)
+#     depot_d = parse_node_line(destination_line, node_type=NodeType.D_DEPOT)
     
 #     return Vehicle(
 #         o_id,
@@ -58,7 +56,8 @@ class Vehicle:
 
         self.capacity = capacity
         self.origin_node.arrival = node_o.earliest
-        self.route = Route(self.origin_node)
+        # TODO Logic for adding routes to vehicles
+        # self.route = Route(self.origin_node)
         self.alias = alias if alias else f"V{str(self.id)}"
         self.passengers = deque(maxlen=self.capacity)
         self.requests = list()
@@ -89,8 +88,8 @@ class Vehicle:
     def pos(self):
         return self.origin_node.pos
     
-    def visit_nodes(self, *nodes):
-        self.route.nodes.extend(nodes)
+    # def visit_nodes(self, *nodes):
+    #     self.route.nodes.extend(nodes)
 
     def __str__(self) -> str:
         return f"{self.alias}({self.load}/{self.capacity})"

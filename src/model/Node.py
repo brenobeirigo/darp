@@ -3,7 +3,7 @@ from ..model.TimeWindow import TimeWindow
 
 from enum import Enum
 from dataclasses import dataclass
-NodeType = Enum('NodeType', ['DEPOT_ORIGIN', 'PU', 'DO', "DEPOT_DESTINATION"])
+NodeType = Enum('NodeType', ['O_DEPOT', 'PU', 'DO', "D_DEPOT"])
 @dataclass
 class NodeInfo:
     id:int 
@@ -18,8 +18,13 @@ class NodeInfo:
     
     def __post_init__(self):
         self.point = Point(self.x, self.y)
+        self.point
         self.tw = TimeWindow(self.earliest, self.latest)
         self.alias = self.alias or self.id
+    
+    @property
+    def xy_coord(self):
+        return self.point.x, self.point.y
 
 class Node:
     

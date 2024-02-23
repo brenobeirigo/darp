@@ -1,6 +1,6 @@
 from ..model.Request import Request
 from ..model.Vehicle import Vehicle
-from ..model.node import Node, OriginNode, PickupNode, DestinationNode, DropoffNode, NodeInfo
+from ..model.node import Node, NodeInfo
 import pandas as pd
 from dataclasses import dataclass
 
@@ -57,8 +57,8 @@ class Instance:
     @property
     def nodeset_df(self):
         # Directly initialize DataFrame with specified data types
-        columns = ["id", "alias", "x", "y", "earliest", "latest", "service_duration"]
-        data = [[n.id, n.alias, n.x, n.y, n.tw.earliest, n.tw.latest, n.service_duration] for n in self.nodes]
+        columns = ["id", "alias", "node_type", "x", "y", "earliest", "latest", "service_duration"]
+        data = [[n.id, n.alias,  n.type.name, n.x, n.y, n.tw.earliest, n.tw.latest, n.service_duration] for n in self.nodes]
         dtype = {'id': 'int32', "earliest": "int32", "latest": "int32"}
 
         df = pd.DataFrame(data, columns=columns).astype(dtype)

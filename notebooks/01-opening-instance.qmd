@@ -124,12 +124,16 @@ from src.plot.route import plot_vehicle_routes # Fleet plot
 
 ### Plotting a Single Vehicle Route
 
-To plot a vehicle's route, its sequence is needed, togetuer with the node id dictionary (for information on node's positions):
+To plot a vehicle's route, its sequence is needed, together with the node information (for information on node's positions):
 
 ```{python}
 from src.solution.Solution import NodeData
 route:list[NodeData] = v0_sol.route
 route
+```
+
+```{python}
+i1.nodes
 ```
 
 
@@ -143,7 +147,7 @@ df = pd.DataFrame([[v.id, n.id, n.w, n.b, n.t, n.q] for v in solution_obj.vehicl
 
 df = df.round(1).astype({"vehicle_load":"int32"})#.replace({"pos": "0*"}, 0)
 dists = []
-for o, d in zip(list(df_m.itertuples())[:-1], list(df_m.itertuples())[1:]):
+for o, d in zip(list(df.itertuples())[:-1], list(df.itertuples())[1:]):
     dists.append(model.dist(o.id, d.id))
 df["distance_previous"] = [0] + dists
 ```
@@ -157,12 +161,15 @@ df_m
 
 
 ```{python}
-df2 = pd.DataFrame([[i, n.id, n.tw.earliest, n.tw.latest, n.alias, n.x, n.y] for i, n in i1.node_id_dict.items()], columns=["id", "node_id"])
-df2.round(1)
+# df2 = pd.DataFrame([[i, n.id, n.tw.earliest, n.tw.latest, n.alias, n.x, n.y] for i, n in i1.node_id_dict.items()], columns=["id", "node_id"])
+# df2.round(1)
 ```
 
 
+
+
 ```{python}
+
 import matplotlib.pyplot as plt
 
 fig, ax =  plt.subplots(1)
@@ -170,13 +177,14 @@ fig, ax =  plt.subplots(1)
 plot_vehicle_route(
     ax,
     v0_sol.route,
-    i1.node_id_dict,
+    i1.nodes,
     show_arrows=True,
     show_node_labels=True,
     route_color="m",
     linestyle="-",
     linewidth=0.5,
-    arrowstyle='-|>'
+    arrowstyle='-|>',
+    tw=True
 )
 ```
 

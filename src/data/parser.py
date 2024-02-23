@@ -65,19 +65,35 @@ def cordeau_parser(instance_path) -> Instance:
         config = InstanceConfig(*map(int,lines[0].split()))
 
         # Create vehicles at the origin
-        o_depot = lines[1]
-        d_depot = lines[-1]
-        depot_o = parse_node_line(o_depot, node_type=NodeType.DEPOT_ORIGIN, alias="Depot")
-        depot_d = parse_node_line(d_depot, node_type=NodeType.DEPOT_DESTINATION, alias="Depot")
+        o_depot_line = lines[1]
+        depot_o = parse_node_line(o_depot_line, node_type=NodeType.O_DEPOT, alias="Depot")
+        
+        # Parse all request lines
+        request_lines = lines[2:2*config.n_customers + 2]
+        pu_nodes, do_nodes, requests = parse_requests(request_lines, config.maximum_ride_time_min)
+        
+        # Some instances do not copy the depot to the last node.
+        # In this case, we create a dummy node for the aux. destination depot.
+        try:
+            d_depot_line = lines[2*config.n_customers + 2]
+            depot_d = parse_node_line(d_depot_line, node_type=NodeType.D_DEPOT, alias="Depot")
+        except:
+            depot_d = NodeInfo(2*config.n_customers + 2,
+                               depot_o.x,
+                               depot_o.y,
+                               depot_o.service_duration,
+                               depot_o.load,
+                               depot_o.earliest,
+                               depot_o.latest,
+                               NodeType.D_DEPOT,
+                               "Depot",
+                               )
+        
         
         vehicles = [
             Vehicle(depot_o, depot_d, config.vehicle_capacity)
             for _ in range(config.n_vehicles)
         ]
-        
-        # Parse all request lines
-        request_lines = lines[2:-1]
-        pu_nodes, do_nodes, requests = parse_requests(request_lines, config.maximum_ride_time_min)
 
         nodes = [depot_o] + pu_nodes + do_nodes + [depot_d]
   

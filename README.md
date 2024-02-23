@@ -197,8 +197,8 @@ Set "a" considers small vehicle capacities and set "b" considers large vehicle c
 - `T`: Avg. transit time (total ride time / number of requests)
 
 - Node id
-- `w`: Waiting at node (vehicle arrived before earliest arrival)
-- `b`: Arrival time
+- `w`: Slack time (vehicle arrives at time `t`, waits `w` time units until `b`)
+- `b`: Arrival time (t + w)
 - `t`: Ride delay (only at dropoff nodes)
 - `q`: Vehicle current capacity
 
@@ -218,6 +218,23 @@ Excerpt of instance `pr02` solution:
     total duration: 1987.32
     total waiting time: 725.982 average: 7.56231
     total transit time: 1965.46 average: 40.9472
+
+
+Excerpt of instance solution `pr01.res`:
+
+    190.02
+
+    1 D:     84.33 Q:      2.00 W:       8.37 T:     30.22
+
+    id   w     b      t     q             x        y     d  q   e   l     dist_previous
+    0        188.54  0.00 0.00     0   -1.044    2.000  0  0    0 1440    0
+    10  0.00  191.99  0.00 1.00    10    2.303    1.164 10  1    0 1440    3.4498268
+    11  0.00  202.58  0.00 2.00    11    2.548    0.629 10  1    0 1440    0.58843019
+    35  0.00  215.00  2.42 1.00    35    0.129    0.735 10 -1  178  215    2.42132144
+    34 33.49  260.00 58.01 0.00    34    1.623    0.932 10 -1  260  276    1.50693234
+    0  0.00  272.87  0.00 0.00
+
+    215 (arrival at 35) + 10 (service duration) + 2.42 (travel time) + 227.42 + 33.49 = 260.
 
 ### Static vs. dynamic problems
 
@@ -240,4 +257,5 @@ SCIP is implemented as C callable library and provides C++ wrapper classes for u
 
 ## References
 
-- [Jean-François Cordeau, (2006) A Branch-and-Cut Algorithm for the Dial-a-Ride Problem. Operations Research 54(3):573-586](http://dx.doi.org/10.1287/opre.1060.0283)
+- [Jean-François Cordeau, (2006). A Branch-and-Cut Algorithm for the Dial-a-Ride Problem. Operations Research 54(3):573-586](http://dx.doi.org/10.1287/opre.1060.0283)
+- [Jean-François Cordeau, Gilbert Laporte, (2003). A tabu search heuristic for the static multi-vehicle dial-a-ride problem.](https://www.sciencedirect.com/science/article/abs/pii/S0191261502000450?via%3Dihub)

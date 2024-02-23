@@ -2,9 +2,10 @@
 # %%
 
 from src import parse_instance_from_filepath, Instance
-from src import Darp
+import src.solver.darp as darp
 from time import time
-from src.solution.parser import Solution, parse_solution_dict
+import logging
+# logging.basicConfig(level=logging.DEBUG)
 
 # i : Instance = parse_instance_from_filepath("data/raw/darp_instances/darp_cordeau_2006/a2-16")
 # i.nodeset_df
@@ -15,11 +16,14 @@ from src.solution.parser import Solution, parse_solution_dict
     
 if __name__ == "__main__":
     t_start = time()
-    i : Instance = parse_instance_from_filepath("data/raw/darp_instances/darp_cordeau_2006/a2-16")
+    i : Instance = parse_instance_from_filepath("data/raw/darp_instances/darp_cordeau_2006/a2-8")
+    # i : Instance = parse_instance_from_filepath("data/raw/darp_instances/darp_cordeau_2003/pr01")
     print("Time to load instance:", time() - t_start)
     
     t_start = time()
-    model = Darp(**i.get_data())
+    # model = Darp(**i.get_data())
+    model = darp.Darp(i)
+    
     print("Time to initialize the model:", time() - t_start)
     
     t_start = time()
@@ -27,23 +31,45 @@ if __name__ == "__main__":
     print("Time to build the model:", time() - t_start)
     
     t_start = time()
-    sol_dict = model.solve()
+    sol = model.solve()
     print("Time to solve the model:", time() - t_start)
     
     print("Calculated output:")
-    print(sol_dict["fleet"]["summary"])
+    print(sol)
     
     print("Solver output:")
-    print(sol_dict["solver"])
+    print(sol.solver_solution)
+    
+    print(sol.route_df(fn_dist=model.dist))
 
 
-    print(i.nodeset_df)
-
-    for k, data in sol_dict["fleet"]["K"].items():
+    print("Vehicle Routes:")
+    print(sol.vehicle_solutions)
+    for k, data in sol.vehicle_solutions.items():
         print(data)
         
-    print("## Solution")
-    s = parse_solution_dict(sol_dict)
-    v0_sol = s.vehicle_solutions
-    print(v0_sol)
-    print(s)
+    print(i.nodeset_df)
+    
+
+
+
+# %%
+
+import matplotlib.pyplot as plt
+from src.plot.route import plot_vehicle_route
+fig, ax =  plt.subplots(1)
+vehicle_id = 0
+plot_vehicle_route(
+    ax,
+    sol.vehicle_solutions[vehicle_id].route,
+    i.nodes,
+    show_arrows=True,
+    show_node_labels=True,
+    route_color="green",
+    linestyle="-",
+    linewidth=0.5,
+    arrowstyle='-|>',
+    title=f"Route vehicle {vehicle_id}"
+)
+
+# %%

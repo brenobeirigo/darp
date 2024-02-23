@@ -1,4 +1,4 @@
-from ..solution.Solution import Solution
+# from ..solution.Solution import Solution
 
 class Route:
     
@@ -62,8 +62,8 @@ class Route:
         
         total_duration = earliest_departure_from_current_node
         
-        s = Solution(0, total_duration, total_waiting, total_transit)
-        print(s)
+        # s = Solution(0, total_duration, total_waiting, total_transit)
+        # print(s)
         
         
         return True

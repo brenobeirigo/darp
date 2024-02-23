@@ -6,31 +6,21 @@ import matplotlib.pyplot as plt
 import matplotlib.collections as mc
 import matplotlib.patches as patches
 from matplotlib.lines import Line2D
-from ..model.node import PickupNode, DropoffNode, Node
+from ..model.node import PickupNode, DropoffNode, Node, NodeInfo, NodeType
+from ..solution.Solution import NodeData, Solution
+from src.data.instance import Instance
+import seaborn as sns
+import pandas as pd
 
 
 ### Constant Colors
 
-
-COLOR_PICKUP = 'green'
-COLOR_DELIVERY = 'red'
-COLOR_ORIGIN = 'black'
-
-
-### Helper Functions
-
-#### Node Color
-
-
-def node_color(n):
-    """
-    Determine the color of a node.
-    """
-    if isinstance(n, DropoffNode):
-        return COLOR_DELIVERY
-    elif isinstance(n, PickupNode):
-        return COLOR_PICKUP
-    return COLOR_ORIGIN
+node_color = {
+    NodeType.D_DEPOT: "k",
+    NodeType.O_DEPOT: "k",
+    NodeType.DO: "r",
+    NodeType.PU: "g"
+}
 
 
 #### Get Colormap
@@ -48,7 +38,7 @@ def get_cmap(n, name='Set1'):
 #### Plot Arrows
 
 
-def plot_arrows(axis, nodes, route_color, arrowstyle, linestyle, linewidth):
+def plot_arrows(axis, nodes:list[NodeInfo], route_color, arrowstyle, linestyle, linewidth):
     """
     Plot arrows between nodes.
     """
@@ -75,23 +65,35 @@ def plot_line_collection(axis, node_xy_coords, route_color, linestyle, linewidth
 #### Plot Nodes
 
 
-def plot_nodes(axis, node_xy_coords, node_colors):
+def plot_nodes(axis, node_xy_coords, node_colors, node_types):
     """
     Plot nodes on the axis.
     """
     x, y = zip(*node_xy_coords)
-    axis.scatter(x, y, color=node_colors, marker='o', s=10)
+    #TODO This part will brack for vehicles that do not leave the depot
+    axis.scatter(x[1:-1], y[1:-1], color=node_colors[1:-1], marker='o', s=15)
+    axis.scatter(x[0], y[0], color='k', marker='s', s=15)
+    
+    # data = pd.DataFrame(
+    #     dict(x=x,
+    #     y=y,
+    #     colors=node_colors,
+    #     markers=node_types))
 
-
+    # print(data)
+    # sns.scatterplot(data=data, x='x', y='y', hue='colors', ax=axis)
+    
+    
 #### Plot Node Labels
 
 
-def plot_node_labels(axis, nodes:list[Node]):
+def plot_node_labels(axis, node_labels, ignore_depot=True):
     """
     Plot labels for nodes.
     """
-    for n in nodes:
-        axis.annotate(f"{n.alias}({n.tw.earliest}/{n.arrival}/{n.tw.latest})", xy=n.xy_coord, fontsize=9, xytext=np.array(n.xy_coord) + 0.05)
+    labels = node_labels[1:-1] if ignore_depot else node_labels
+    for label, xy in labels:
+        axis.annotate(label, xy=xy, fontsize=9, xytext=np.array(xy) + 0.05)
 
 
 #### Set Axis Limits
@@ -116,14 +118,14 @@ def plot_legend(axis):
     """
     Plot a custom legend.
     """
-    legend_elements = [Line2D([0], [0], marker='o', color='w', label='Origin',
-                              markerfacecolor='black', markersize=5),
+    legend_elements = [Line2D([0], [0], marker='s', color='w', label='Depot',
+                              markerfacecolor='k', markersize=10),
                        Line2D([0], [0], marker='o', color='w', label='Pickup',
-                              markerfacecolor='green', markersize=5),
+                              markerfacecolor='g', markersize=10),
                        Line2D([0], [0], marker='o', color='w', label='Drop off',
-                              markerfacecolor='red', markersize=5)]
+                              markerfacecolor='r', markersize=10)]
     axis.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.1),
-                fancybox=False, shadow=False, ncol=3, fontsize='small')
+                fancybox=False, frameon=False, shadow=False, ncol=3, fontsize='small')
     plt.subplots_adjust(bottom=0.1)
 
 
@@ -132,14 +134,14 @@ def plot_legend(axis):
 #### Plot Vehicle Route
 
 
-def plot_vehicle_route(axis, visits, node_id_dict:dict[int, Node], route_color='k', coord_box=(-10, 10, -10, 10), 
+def plot_vehicle_route(axis, visits:list[NodeData], node_info:list[NodeInfo], route_color='k', coord_box=(-10, 10, -10, 10), 
                        show_arrows=True, show_nodes=True, show_node_labels=True, 
                        arrowstyle='->', linestyle='--', linewidth=1, show_legend=True, 
-                       x_title="x", y_title="y"):
+                       x_title="x", y_title="y", tw=False, title=None):
     """
     Plot a single vehicle route.
     """
-    node_xy_coords, node_colors, nodes = process_visits(visits, node_id_dict)
+    node_xy_coords, node_colors, nodes, node_labels, node_types = process_visits(visits, node_info, tw=tw)
 
     if show_arrows:
         plot_arrows(axis, nodes, route_color, arrowstyle, linestyle, linewidth)
@@ -147,9 +149,9 @@ def plot_vehicle_route(axis, visits, node_id_dict:dict[int, Node], route_color='
         plot_line_collection(axis, node_xy_coords, route_color, linestyle, linewidth)
 
     if show_nodes:
-        plot_nodes(axis, node_xy_coords, node_colors)
+        plot_nodes(axis, node_xy_coords, node_colors, node_types)
     if show_node_labels:
-        plot_node_labels(axis, nodes)
+        plot_node_labels(axis, node_labels, ignore_depot=True)
 
     axis.set_xlabel(x_title)
     axis.set_ylabel(y_title)
@@ -157,29 +159,35 @@ def plot_vehicle_route(axis, visits, node_id_dict:dict[int, Node], route_color='
 
     if show_legend:
         plot_legend(axis)
+    if title:
+        axis.set_title(title)
 
 
 #### Process Visits
 
 
-def process_visits(visits, node_id_dict):
+def process_visits(visits:list[NodeData], node_info:list[NodeInfo], tw=False):
     """
     Process visit nodes.
     """
     node_xy_coords = []
     node_colors = []
     nodes = []
+    node_labels =[]
+    node_types = []
 
-    for n in visits:
-        try:
-            node = node_id_dict[n.id]
-        except KeyError:
-            node = node_id_dict[int(n.id.replace("*", ""))]
+    for n in visits:       
+        node = node_info[n.id]
         nodes.append(node)
-        node_colors.append(node_color(node))
+        node_colors.append(node_color[node.type])
+        
+        tw_str = f"({node.tw.earliest}/{round(n.b,1)}/{node.tw.latest})" if tw else ""
+        label = f"{node.alias}{tw_str}"
+        node_labels.append((label, node.xy_coord))
+        node_types.append('s' if node.type in (NodeType.O_DEPOT, NodeType.D_DEPOT) else 'o')
         node_xy_coords.append(node.xy_coord)
     
-    return node_xy_coords, node_colors, nodes
+    return node_xy_coords, node_colors, nodes, node_labels, node_types
 
 
 #### Plot Vehicle Routes
@@ -212,12 +220,12 @@ def setup_plots(jointly, n_vehicles, figsize):
 #### Plot Multiple Routes
 
 
-def plot_multiple_routes(ax, instance, solution, jointly, coord_box, show_arrows,
+def plot_multiple_routes(ax, instance: Instance, solution: Solution, jointly, coord_box, show_arrows,
                          show_nodes, show_node_labels, arrowstyle, linestyle, linewidth):
     """
     Plot routes for multiple vehicles.
     """
-    v_nodes = {v.id: v.visits for v in solution.vehicle_routes}
+    v_nodes = {v.id: v.route for v in solution.vehicle_solutions}
     cmap = get_cmap(len(v_nodes))
 
     for i, (v, visits) in enumerate(v_nodes.items()):
@@ -225,9 +233,10 @@ def plot_multiple_routes(ax, instance, solution, jointly, coord_box, show_arrows
         v_color = cmap(i)
         if not jointly:
             axis.set_title(instance.vehicle_id_dict[v].alias)
-        plot_vehicle_route(axis, visits, instance.node_id_dict, route_color=v_color,
+        plot_vehicle_route(axis, visits, instance.nodes, route_color=v_color,
                            coord_box=coord_box, show_arrows=show_arrows,
                            show_nodes=show_nodes, show_node_labels=show_node_labels,
+                           arrowstyle=arrowstyle,
                            linestyle=linestyle, linewidth=linewidth, show_legend=False)
 
     if jointly:

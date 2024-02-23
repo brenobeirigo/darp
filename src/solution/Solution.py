@@ -5,25 +5,29 @@ from typing import OrderedDict
 from ..model.node import DropoffNode, PickupNode
 from collections import OrderedDict
 from dataclasses import dataclass
+from ..data.instance import Instance
+import pandas as pd
+
+# import pandas as pd
 
 VEHICLE_ROUTE_PATTERN_PARRAGH = (
-    "(\d*)[\t ]"
-    "*D:[\t ]*([\d.]*)[\t ]"
-    "*Q:[\t ]*([\d]*)[\t ]"
-    "*W:[\t ]*([\d.]*)[\t ]*"
-    "T:[\t ]*([\d.]*)[\t ]*"
-    "(.*)"
+    r"(\d*)[\t ]"
+    r"*D:[\t ]*([\d.]*)[\t ]"
+    r"*Q:[\t ]*([\d]*)[\t ]"
+    r"*W:[\t ]*([\d.]*)[\t ]*"
+    r"T:[\t ]*([\d.]*)[\t ]*"
+    r"(.*)"
 )
 
 # E.g.:
 # input = 0 (w: 0; b: 130.294; t: 0; q: 0)
 # output = 0, 130.294, 0, 0
 NODE_PATTERN_PARRAGH = (
-    "([\d]*)[\t ]*"
-    "\( *w: ([\d.]*); "
-    "*b: ([\d.]*); "
-    "*t: ([\d.]*); "
-    "*q: ([\d.]*)\)[\t ]*"
+    r"([\d]*)[\t ]*"
+    r"\( *w: ([\d.]*); "
+    r"*b: ([\d.]*); "
+    r"*t: ([\d.]*); "
+    r"*q: ([\d.]*)\)[\t ]*"
 )
 
 
@@ -245,32 +249,32 @@ class FleetData:
 
 @dataclass
 class Solution:
-    cost: float
-    total_duration: float
-    total_waiting: float
-    total_transit: float
-    avg_waiting: float
-    avg_transit: float
+    instance: Instance
+    summary: SummaryData
+    solver_solution: SolutionData
     vehicle_solutions: dict[VehicleData]
 
     def __repr__(self):
-        avg_w = (
-            f"avg_waiting={self.avg_waiting:10.4f}, "
-            if self.avg_waiting
-            else ""
-        )
-        
-        avg_t = (
-            f", avg_transit={self.avg_transit:10.4f}"
-            if self.avg_transit
-            else ""
-        )
+        return repr(self.summary)
+    
+    def route_df(self, fn_dist:callable):
+        # Create initial DataFrame
+        df = pd.DataFrame([(v.id, n.id, n.w, n.b, n.t, n.q, fn_dist(prev_n.id, n.id) if prev_n else 0)
+                        for v in self.vehicle_solutions.values()
+                        for prev_n, n in zip([None]+v.route[:-1], v.route)], 
+                        columns=["vehicle_id", "id", "waiting", "arrival", 
+                                "ride_time_delay", "vehicle_load", "distance_previous"])
 
-        return (
-            "Solution("
-            f"total_cost={self.cost:10.4f}, "
-            f"total_duration={self.total_duration:10.4f}, "
-            f"total_waiting={self.total_waiting:10.4f}, {avg_w}"
-            f"total_transit={self.total_transit:10.4f} {avg_t}"
-            ")"
-        )
+        # Round and adjust data types
+        df = df.round(2)
+        df["vehicle_load"] = df["vehicle_load"].astype("int32")
+
+        # Merge with nodeset_df and calculate departure
+        df_m = pd.merge(df, self.instance.nodeset_df, on="id", how="left").round(2)
+        df_m["departure"] = df_m["arrival"] + df_m["service_duration"]
+
+        # Reorder columns
+        df_m = df_m[["vehicle_id", "vehicle_load", "id", "alias", "node_type", "x", "y", "distance_previous", 
+                    "waiting", "earliest", "arrival", "latest", "service_duration", "departure"]]
+
+        return df_m
