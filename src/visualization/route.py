@@ -17,9 +17,9 @@ import pandas as pd
 
 node_features = {
     NodeType.D_DEPOT.name: {"color": "k", "marker": "s"},
-    NodeType.O_DEPOT.name: {"color":"k","marker": "s"},
-    NodeType.DO.name:{"color": "r","marker": "o"},
-    NodeType.PU.name:{"color": "g","marker": "o"}
+    NodeType.O_DEPOT.name: {"color": "k", "marker": "s"},
+    NodeType.DO.name: {"color": "r", "marker": "o"},
+    NodeType.PU.name: {"color": "g", "marker": "o"},
 }
 
 
@@ -38,7 +38,9 @@ def get_cmap(n, name="Set1"):
 #### Plot Arrows
 
 
-def plot_arrows(axis, df:pd.DataFrame, route_color, arrowstyle, linestyle, linewidth):
+def plot_arrows(
+    axis, df: pd.DataFrame, route_color, arrowstyle, linestyle, linewidth
+):
     """
     Plot arrows between nodes using DataFrame.
     """
@@ -46,8 +48,8 @@ def plot_arrows(axis, df:pd.DataFrame, route_color, arrowstyle, linestyle, linew
         p = df.iloc[idx]
         d = df.iloc[idx + 1]
         arrow = patches.FancyArrowPatch(
-            p[['x', 'y']].to_list(),
-            d[['x', 'y']].to_list(),
+            p[["x", "y"]].to_list(),
+            d[["x", "y"]].to_list(),
             edgecolor=route_color,
             facecolor=route_color,
             arrowstyle=arrowstyle,
@@ -61,13 +63,15 @@ def plot_arrows(axis, df:pd.DataFrame, route_color, arrowstyle, linestyle, linew
 #### Plot Line Collection
 
 
-def plot_line_collection(axis, df:pd.DataFrame, route_color, linestyle, linewidth):
+def plot_line_collection(
+    axis, df: pd.DataFrame, route_color, linestyle, linewidth
+):
     """
     Plot a line collection using DataFrame.
     """
 
     lc_vehicle = mc.LineCollection(
-        [df[['x', 'y']].values.reshape(-1,2)],
+        [df[["x", "y"]].values.reshape(-1, 2)],
         linewidths=linewidth,
         linestyles=linestyle,
         edgecolors=route_color,
@@ -83,17 +87,36 @@ def plot_nodes(axis, df):
     Plot nodes on the axis using DataFrame.
     """
     # Depot nodes
-    depot_df = df[df['node_type'].isin([NodeType.O_DEPOT.name, NodeType.D_DEPOT.name])]
-    axis.scatter(depot_df['x'], depot_df['y'], color=node_features[NodeType.O_DEPOT.name]["color"], marker=node_features[NodeType.O_DEPOT.name]["marker"], s=15)
+    depot_df = df[
+        df["node_type"].isin([NodeType.O_DEPOT.name, NodeType.D_DEPOT.name])
+    ]
+    axis.scatter(
+        depot_df["x"],
+        depot_df["y"],
+        color=node_features[NodeType.O_DEPOT.name]["color"],
+        marker=node_features[NodeType.O_DEPOT.name]["marker"],
+        s=15,
+    )
 
     # Pickup nodes
-    pu_df = df[df['node_type'] == NodeType.PU.name]
-    axis.scatter(pu_df['x'], pu_df['y'], color=node_features[NodeType.PU.name]["color"], marker=node_features[NodeType.PU.name]["marker"], s=15)
-    
-    # Dropoff nodes
-    du_df = df[df['node_type'] == NodeType.DO.name]
-    axis.scatter(du_df['x'], du_df['y'], color=node_features[NodeType.DO.name]["color"], marker=node_features[NodeType.DO.name]["marker"], s=15)
+    pu_df = df[df["node_type"] == NodeType.PU.name]
+    axis.scatter(
+        pu_df["x"],
+        pu_df["y"],
+        color=node_features[NodeType.PU.name]["color"],
+        marker=node_features[NodeType.PU.name]["marker"],
+        s=15,
+    )
 
+    # Dropoff nodes
+    du_df = df[df["node_type"] == NodeType.DO.name]
+    axis.scatter(
+        du_df["x"],
+        du_df["y"],
+        color=node_features[NodeType.DO.name]["color"],
+        marker=node_features[NodeType.DO.name]["marker"],
+        s=15,
+    )
 
 
 #### Plot Node Labels
@@ -104,11 +127,18 @@ def plot_node_labels(axis, df, ignore_depot=True):
     Plot labels for nodes using DataFrame.
     """
     if ignore_depot:
-        df = df[~df['node_type'].isin([NodeType.O_DEPOT.name, NodeType.D_DEPOT.name])]
+        df = df[
+            ~df["node_type"].isin(
+                [NodeType.O_DEPOT.name, NodeType.D_DEPOT.name]
+            )
+        ]
 
     for _, row in df.iterrows():
-        xy = row[['x', 'y']].to_list()
-        axis.annotate(row['alias'], xy=xy, fontsize=9, xytext=np.array(xy) + 0.05)
+        xy = row[["x", "y"]].to_list()
+        axis.annotate(
+            row["alias"], xy=xy, fontsize=9, xytext=np.array(xy) + 0.05
+        )
+
 
 #### Set Axis Limits
 
@@ -211,7 +241,7 @@ def plot_vehicle_route(
 
     axis.set_xlabel(x_title)
     axis.set_ylabel(y_title)
-    set_axis_limits(axis, coord_box, df['x'], df['y'])
+    set_axis_limits(axis, coord_box, df["x"], df["y"])
 
     if show_legend:
         plot_legend(axis)
