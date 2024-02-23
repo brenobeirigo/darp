@@ -2,6 +2,7 @@ import os
 
 # Adding path to package
 import sys
+
 sys.path.append(os.getcwd())
 from config import FOLDER_DATA_RAW_INSTANCES, FOLDER_RESULTS
 
@@ -38,22 +39,22 @@ for filename in instance_filenames:
     model = Darp(**instance.get_data())
     model.build()
     result = model.solve()
-    
+
     # PRINT ROUTES
     # result["instance"] = filename
     # print(result["fleet"]["K"].items())
     # for k, k_nodes in result["fleet"]["K"].items():
     #     print(k, [n for n, _ in k_nodes["route"]])
     # #     print(k, [n for n, data in k_result["route"].items()])
-    
+
     logger.info(result["solver"]["sol_objvalue"])
 
     solution_obj = solution_parser.parse_solution_dict(result)
-    
+
     sol_filepath = f"{os.path.join(result_folder, filename)}.json"
     with open(sol_filepath, "w") as outfile:
         json.dump(result, outfile, indent=4)
-    
+
     fig, ax = route_plot.plot_vehicle_routes(
         instance,
         solution_obj,

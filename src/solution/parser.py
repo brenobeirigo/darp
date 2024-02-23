@@ -14,7 +14,6 @@ def check_input_output(instance, solution):
     b = 0
 
     for v, v_sol in zip(instance.vehicles, solution.vehicle_solutions):
-
         v.origin_node.arrival = v_sol.visits[0].b
 
         for n in v_sol.visits[1:-1]:
@@ -50,12 +49,10 @@ def get_vehicle_solution_from_str(str):
 
 
 def get_node_solution_list_from_route_str(str: str) -> list[NodeData]:
-
     nodes = re.findall(NODE_PATTERN_PARRAGH, str)
 
     node_sol = []
     for node_id, w, b, t, q in nodes:
-
         node_sol.append(
             NodeData(int(node_id), float(w), float(b), float(t), int(q))
         )
@@ -63,7 +60,6 @@ def get_node_solution_list_from_route_str(str: str) -> list[NodeData]:
 
 
 def parse_solution_from_filepath(solution_filepath):
-
     output = get_solution_cleaned_lines_from_filepath(solution_filepath)
 
     # Get instance input name (e.g., outputfile for pr02.txt)
@@ -92,22 +88,22 @@ def parse_solution_from_filepath(solution_filepath):
 
     return s
 
+
 def parse_solution_dict(result):
-   
     s = Solution(
-            cost=result["fleet"]["summary"].cost,
-            total_duration=result["fleet"]["summary"].total_duration,
-            total_waiting=result["fleet"]["summary"].total_waiting,
-            total_transit=result["fleet"]["summary"].total_transit,
-            avg_waiting=result["fleet"]["summary"].avg_waiting,
-            avg_transit=result["fleet"]["summary"].avg_transit,
-            vehicle_solutions=list(result["fleet"]["K"].values()),
-        )
+        cost=result["fleet"]["summary"].cost,
+        total_duration=result["fleet"]["summary"].total_duration,
+        total_waiting=result["fleet"]["summary"].total_waiting,
+        total_transit=result["fleet"]["summary"].total_transit,
+        avg_waiting=result["fleet"]["summary"].avg_waiting,
+        avg_transit=result["fleet"]["summary"].avg_transit,
+        vehicle_solutions=list(result["fleet"]["K"].values()),
+    )
     return s
+
 
 def get_solution_cleaned_lines_from_filepath(solution_filepath):
     with open(solution_filepath, "r") as file:
-        
         lines = file.readlines()
         # Clean \n's lines and trailing \n's spaces
         stripped_lines = list(map(str.strip, lines))

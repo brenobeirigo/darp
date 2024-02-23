@@ -4,10 +4,11 @@ import pytest
 from testfixtures import TempDirectory
 import os
 
+
 @pytest.fixture
 def solution_parragh_filepath():
     d = TempDirectory()
-    
+
     content_solution = b"""outputfile for pr02.txt
 
     0 D:	455.309 Q:	3 W:	7.1095 T:	53.0065	0 (w: 0; b: 85.2408; t: 0; q: 0) 44 (w: 0; b: 89; t: 0; q: 1) 20 (w: 29.7905; b: 131.026; t: 0; q: 2) 92 (w: 0; b: 142.205; t: 43.2055; q: 1) 38 (w: 0; b: 153.316; t: 0; q: 2) 27 (w: 0; b: 167; t: 0; q: 3) 68 (w: 15.4097; b: 195; t: 53.9744; q: 2) 86 (w: 0; b: 209.645; t: 46.3291; q: 1) 30 (w: 21.2879; b: 248; t: 0; q: 2) 75 (w: 0; b: 261.402; t: 84.4021; q: 1) 15 (w: 58.657; b: 334.401; t: 0; q: 2) 78 (w: 0; b: 348; t: 90; q: 1) 1 (w: 0; b: 359.092; t: 0; q: 2) 25 (w: 18.666; b: 390; t: 0; q: 3) 63 (w: 0; b: 405.759; t: 61.3586; q: 2) 4 (w: 0; b: 418.866; t: 0; q: 3) 52 (w: 0; b: 431.388; t: 2.52195; q: 2) 49 (w: 12.5978; b: 459; t: 89.9084; q: 1) 26 (w: 0; b: 473.387; t: 0; q: 2) 73 (w: 0; b: 488.611; t: 88.6115; q: 1) 74 (w: 0; b: 500.733; t: 17.3457; q: 0) 37 (w: 0; b: 512.889; t: 0; q: 1) 85 (w: 0; b: 528.304; t: 5.41463; q: 0) 0 (w: 0; b: 540.55; t: 0; q: 0) 
@@ -26,22 +27,28 @@ def solution_parragh_filepath():
     total transit time: 1965.46 average: 40.9472
     
     """
-    filename = 'pr02_result.txt'
+    filename = "pr02_result.txt"
     d.write(filename, content_solution)
 
     filepath = os.path.join(d.path, filename)
 
     return filepath
 
+
 def test_get_cleaned_solution_lines_from_filepath(solution_parragh_filepath):
-    lines = sp.get_solution_cleaned_lines_from_filepath(solution_parragh_filepath)
+    lines = sp.get_solution_cleaned_lines_from_filepath(
+        solution_parragh_filepath
+    )
     assert len(lines) == 10
 
+
 def test_get(solution_parragh_filepath):
-    lines = sp.get_solution_cleaned_lines_from_filepath(solution_parragh_filepath)
+    lines = sp.get_solution_cleaned_lines_from_filepath(
+        solution_parragh_filepath
+    )
     results = sp.get_solution_overall_results(lines)
-    assert (301.336, 1987.32, 725.982, 1965.46, 40.9472, 7.56231) == results 
-    
+    assert (301.336, 1987.32, 725.982, 1965.46, 40.9472, 7.56231) == results
+
+
 def test_parse_solution_from_file_path(solution_parragh_filepath):
-    
     s = sp.parse_solution_from_filepath(solution_parragh_filepath)

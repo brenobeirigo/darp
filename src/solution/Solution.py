@@ -38,7 +38,7 @@ class NodeData:
     b: float
     t: float
     q: float
-    
+
     def __repr__(self) -> str:
         return (
             f"{self.id} ("
@@ -48,21 +48,21 @@ class NodeData:
             f"q: {self.q:6.2f})"
         )
 
-@dataclass     
+
+@dataclass
 class VehicleData:
     id: int
-    D: float # Duration = Departure 1st node - Arrival last node
+    D: float  # Duration = Departure 1st node - Arrival last node
     Q: float  # Max. load vehicle
     W: float
-    W_avg: float # Avg. waiting at PUDO nodes (vehicle arrived earlier than earliest time)
+    W_avg: float  # Avg. waiting at PUDO nodes (vehicle arrived earlier than earliest time)
     T: float
-    T_avg: float # Avg. transit time
+    T_avg: float  # Avg. transit time
     route: list[NodeData]
-    
-    
+
     def summary(self):
         return f"cost={self.D}"
-    
+
     def __repr__(self):
         visits = " ".join(map(str, self.route))
         return (
@@ -74,7 +74,6 @@ class VehicleData:
             f"{visits}"
         )
 
-    
     def __post_init__(self):
         # 0 for pickups and >= for dropoffs
         self.total_transit = sum([node.t for node in self.route])
@@ -87,35 +86,40 @@ class VehicleData:
             and node_solution.b <= node_instance.tw.latest
         ):
             return True
-    
+
     def get_total_cost(self, dist_matrix):
         od_pos_pairs = [
-            (o.id, d.id)
-            for o, d in zip(self.route[:-1], self.route[1:])
+            (o.id, d.id) for o, d in zip(self.route[:-1], self.route[1:])
         ]
-        cost = sum([dist_matrix[o][d] for o,d in od_pos_pairs])
+        cost = sum([dist_matrix[o][d] for o, d in od_pos_pairs])
         print("cost_r:", cost)
         # assert round(cost, 2) == round(self.T, 2)
         return cost
-    
+
     def get_total_duration(self):
         duration = self.route[-1].b - self.route[0].b
-        assert round(duration,2) == round(self.D, 2)
+        assert round(duration, 2) == round(self.D, 2)
         return duration
 
     def get_total_transit(self, instance):
         io_node_dict = self.get_ordered_dict_id_io_node_pair(instance)
-        pickups = [pair["solution"] for pair in io_node_dict.values() if type(pair["instance"]) is PickupNode]
-        dropoffs = [pair["solution"] for pair in io_node_dict.values() if type(pair["instance"]) is DropoffNode]
+        pickups = [
+            pair["solution"]
+            for pair in io_node_dict.values()
+            if type(pair["instance"]) is PickupNode
+        ]
+        dropoffs = [
+            pair["solution"]
+            for pair in io_node_dict.values()
+            if type(pair["instance"]) is DropoffNode
+        ]
         transit = sum([n.t for n in dropoffs])
         transit2 = sum([n.t for n in pickups])
         # print("transit_delivery_nodes (t):", transit)
         # print("transit_pickup_nodes (t):", transit2)
         return transit
-        
-        
-    def is_route_feasible(self, instance):
 
+    def is_route_feasible(self, instance):
         io_node_dict = self.get_ordered_dict_id_io_node_pair(instance)
 
         total_transit = 0
@@ -139,7 +143,7 @@ class VehicleData:
                     dropoff_node.pos
                 ]
                 pickup_sol = io_node_dict[pickup_node.pos]["solution"]
-                
+
                 if not self.is_transit_within_limits(
                     pickup_node,
                     pickup_sol,
@@ -149,9 +153,9 @@ class VehicleData:
                     shortest_distance,
                 ):
                     return False
-                
+
                 total_transit += dropoff_solution.t
-                
+
         return True
 
     def is_transit_within_limits(
@@ -163,7 +167,6 @@ class VehicleData:
         max_ride_time,
         shortest_distance,
     ):
-
         earliest_arrival_from_pickup_sol = (
             pickup_solution.b
             + pickup_instance.service_delay
@@ -187,7 +190,6 @@ class VehicleData:
         #     round(shortest_distance),
         # )
 
-        
         # Although vehicle can arrive earlier from pickup, the
         # earliest time at the destination must always be
         # greater than the best earliest time.
@@ -206,7 +208,6 @@ class VehicleData:
         io_node_dict = OrderedDict()
 
         for node_solution in self.route:
-
             node_instance = instance.node_id_dict[node_solution.id]
 
             # Check if node IDs for input and output match
@@ -222,6 +223,7 @@ class VehicleData:
 
         return io_node_dict
 
+
 @dataclass
 class SummaryData:
     cost: float
@@ -230,6 +232,7 @@ class SummaryData:
     avg_waiting: float
     total_transit: float
     avg_transit: float
+
 
 @dataclass
 class SolutionData:
@@ -242,12 +245,13 @@ class SolutionData:
     solver_numiterations: int
     solver_numnodes: int
 
+
 @dataclass
 class FleetData:
     K: dict[int, VehicleData]
     summary: SummaryData
     solver: SolutionData
-    
+
 
 @dataclass
 class Solution:
@@ -258,25 +262,62 @@ class Solution:
 
     def __repr__(self):
         return repr(self.summary)
-    
-    def route_df(self, fn_dist:callable):
+
+    def route_df(self, fn_dist: callable):
         # Create initial DataFrame
-        df = pd.DataFrame([(v.id, n.id, n.w, n.b, n.t, n.q, fn_dist(prev_n.id, n.id) if prev_n else 0)
-                        for v in self.vehicle_solutions.values()
-                        for prev_n, n in zip([None]+v.route[:-1], v.route)], 
-                        columns=["vehicle_id", "id", "waiting", "arrival", 
-                                "ride_time_delay", "vehicle_load", "distance_previous"])
+        df = pd.DataFrame(
+            [
+                (
+                    v.id,
+                    n.id,
+                    n.w,
+                    n.b,
+                    n.t,
+                    n.q,
+                    fn_dist(prev_n.id, n.id) if prev_n else 0,
+                )
+                for v in self.vehicle_solutions.values()
+                for prev_n, n in zip([None] + v.route[:-1], v.route)
+            ],
+            columns=[
+                "vehicle_id",
+                "id",
+                "waiting",
+                "arrival",
+                "ride_time_delay",
+                "vehicle_load",
+                "distance_previous",
+            ],
+        )
 
         # Round and adjust data types
         df = df.round(2)
         df["vehicle_load"] = df["vehicle_load"].astype("int32")
 
         # Merge with nodeset_df and calculate departure
-        df_m = pd.merge(df, self.instance.nodeset_df, on="id", how="left").round(2)
+        df_m = pd.merge(
+            df, self.instance.nodeset_df, on="id", how="left"
+        ).round(2)
         df_m["departure"] = df_m["arrival"] + df_m["service_duration"]
 
         # Reorder columns
-        df_m = df_m[["vehicle_id", "vehicle_load", "id", "alias", "node_type", "x", "y", "distance_previous", 
-                    "waiting", "earliest", "arrival", "latest", "service_duration", "departure"]]
+        df_m = df_m[
+            [
+                "vehicle_id",
+                "vehicle_load",
+                "id",
+                "alias",
+                "node_type",
+                "x",
+                "y",
+                "distance_previous",
+                "waiting",
+                "earliest",
+                "arrival",
+                "latest",
+                "service_duration",
+                "departure",
+            ]
+        ]
 
         return df_m

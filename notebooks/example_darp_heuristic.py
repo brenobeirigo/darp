@@ -28,20 +28,20 @@ instance = instance_parser.parse_instance_from_filepath(
 data = instance.get_data()
 customers = data["P"]
 customers_tw = [(i, data["el"][i]) for i in customers]
-customers_earliest = sorted(customers_tw, key=lambda x:x[1][0])
+customers_earliest = sorted(customers_tw, key=lambda x: x[1][0])
 pprint(customers_earliest)
- 
+
 # %% [markdown]
-# Consider now the case in which there are N customer demands for service 
+# Consider now the case in which there are N customer demands for service
 # and n available Dial-a-Ride vehicles.
 # ADARTW begins by indexing customers in the order of their earliest pick-up times:
-# 
+#
 # %%
 
 for node in instance.requests:
     print(node)
 
-pprint(sorted(instance.requests, key=lambda r:r.pickup_node.el[0]))
+pprint(sorted(instance.requests, key=lambda r: r.pickup_node.el[0]))
 # %%
 # ”, EPTi (i = 1, . . . , N), i.e. according to the earliest time at which they are expected to be available for a pick-up. Section 4 shows how EPT, is computed.
 

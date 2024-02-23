@@ -23,12 +23,12 @@ from pprint import pprint
 import networkx as nx
 
 dist_matrix = {
-    "depot": {"1": 150, "2": 100}, #,  "depot*": 0},
+    "depot": {"1": 150, "2": 100},  # ,  "depot*": 0},
     "1": {"2": 100, "1*": 150, "2*": 100},
     "2": {"1": 150, "1*": 400, "2*": 300},
-     "1*": {"2": 100, "2*": 25, "depot": 100},
-     "2*": {"1": 150, "1*": 150, "depot": 100},
-    #"depot*": {},
+    "1*": {"2": 100, "2*": 25, "depot": 100},
+    "2*": {"1": 150, "1*": 150, "depot": 100},
+    # "depot*": {},
 }
 
 print(dist_matrix)
@@ -40,7 +40,6 @@ print(dist_matrix)
 #       route: [0]---150--->[1]---25--->[2]---400--->[1*]---25--->[2*]
 #          tw:           [0  ,180)   [20 ,200)    [300,600)    [320,620)
 #     e. arr.:              150         100          450          400
-
 
 
 G = nx.DiGraph()
@@ -88,24 +87,17 @@ data = dict(
         "1": (0, 180),
         "1*": (150, 600),
     },
-    d={
-        "depot": 0,
-        "depot*": 0,
-        "1": 0,
-        "1*": 0},
-    q={
-        "depot": 0,
-        "depot*": 0,
-        "1": 4,
-        "1*": -4},
+    d={"depot": 0, "depot*": 0, "1": 0, "1*": 0},
+    q={"depot": 0, "depot*": 0, "1": 4, "1*": -4},
     dist_matrix=dist_matrix,
-    total_horizon=TOTAL_HORIZON
+    total_horizon=TOTAL_HORIZON,
 )
 
 # %%
 sys.path.append(os.path.abspath("../"))
 print(sys.path)
 from src.solver.darp import Darp
+
 model = Darp(**data)
 print(model)
 

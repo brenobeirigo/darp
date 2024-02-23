@@ -4,7 +4,7 @@ from ..model.Route import Route
 
 # depot_o = parse_node_line(origin_line, node_type=NodeType.O_DEPOT)
 #     depot_d = parse_node_line(destination_line, node_type=NodeType.D_DEPOT)
-    
+
 #     return Vehicle(
 #         o_id,
 #         vehicle_capacity,
@@ -18,9 +18,7 @@ from ..model.Route import Route
 #     )
 
 
-        
 class Vehicle:
-
     count = 0
 
     def __init__(
@@ -63,12 +61,11 @@ class Vehicle:
         self.requests = list()
 
         Vehicle.count += 1
-        
+
     @property
     def origin_tw(self):
         return self.node_o.tw
-    
-    
+
     @property
     def destination_tw(self):
         return self.node_d.tw
@@ -76,7 +73,7 @@ class Vehicle:
     @staticmethod
     def cleanup():
         Vehicle.count = 0
-    
+
     def must_return_to_origin(self):
         return self.destination_node != None
 
@@ -87,7 +84,7 @@ class Vehicle:
     @property
     def pos(self):
         return self.origin_node.pos
-    
+
     # def visit_nodes(self, *nodes):
     #     self.route.nodes.extend(nodes)
 

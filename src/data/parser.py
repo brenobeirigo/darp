@@ -8,8 +8,11 @@ from ..model.node import Node, OriginNode, DestinationNode
 
 PARSER_TYPE_CORDEAU = "cordeau_2006"
 PARSER_TYPE_ROPKE = "ropke_2007"
- 
-def parse_node_line(line:str, node_type:NodeType, alias:str=None) -> NodeInfo:
+
+
+def parse_node_line(
+    line: str, node_type: NodeType, alias: str = None
+) -> NodeInfo:
     id, x, y, service_duration, load, earliest, latest = line.split()
     return NodeInfo(
         int(id),
@@ -24,7 +27,9 @@ def parse_node_line(line:str, node_type:NodeType, alias:str=None) -> NodeInfo:
     )
 
 
-def parse_requests(request_lines:list[str], max_ride_time:int)->list[Request]:
+def parse_requests(
+    request_lines: list[str], max_ride_time: int
+) -> list[Request]:
     requests = []
     pickups = []
     dropoffs = []
@@ -34,18 +39,22 @@ def parse_requests(request_lines:list[str], max_ride_time:int)->list[Request]:
         pu_line = request_lines[i]
         pickup = parse_node_line(pu_line, node_type=NodeType.PU)
         pickups.append(pickup)
-        
+
         do_line = request_lines[i + n_customers]
-        dropoff = parse_node_line(do_line, node_type=NodeType.DO, alias=f"{pickup.id}*")
+        dropoff = parse_node_line(
+            do_line, node_type=NodeType.DO, alias=f"{pickup.id}*"
+        )
         dropoffs.append(dropoff)
-        
+
         request = Request(pickup, dropoff, max_ride_time=max_ride_time)
         requests.append(request)
 
     return pickups, dropoffs, requests
 
 
-def get_node_list(requests: list[Request], vehicles: list[Vehicle])->list[Node]:
+def get_node_list(
+    requests: list[Request], vehicles: list[Vehicle]
+) -> list[Node]:
     pickups, dropoffs = zip(
         *[(r.pickup_node, r.dropoff_node) for r in requests]
     )
@@ -58,53 +67,55 @@ def get_node_list(requests: list[Request], vehicles: list[Vehicle])->list[Node]:
 
 
 def cordeau_parser(instance_path) -> Instance:
-
     with open(instance_path, "r") as file:
         lines = file.readlines()
 
-        config = InstanceConfig(*map(int,lines[0].split()))
+        config = InstanceConfig(*map(int, lines[0].split()))
 
         # Create vehicles at the origin
         o_depot_line = lines[1]
-        depot_o = parse_node_line(o_depot_line, node_type=NodeType.O_DEPOT, alias="Depot")
-        
+        depot_o = parse_node_line(
+            o_depot_line, node_type=NodeType.O_DEPOT, alias="Depot"
+        )
+
         # Parse all request lines
-        request_lines = lines[2:2*config.n_customers + 2]
-        pu_nodes, do_nodes, requests = parse_requests(request_lines, config.maximum_ride_time_min)
-        
+        request_lines = lines[2 : 2 * config.n_customers + 2]
+        pu_nodes, do_nodes, requests = parse_requests(
+            request_lines, config.maximum_ride_time_min
+        )
+
         # Some instances do not copy the depot to the last node.
         # In this case, we create a dummy node for the aux. destination depot.
         try:
-            d_depot_line = lines[2*config.n_customers + 2]
-            depot_d = parse_node_line(d_depot_line, node_type=NodeType.D_DEPOT, alias="Depot")
+            d_depot_line = lines[2 * config.n_customers + 2]
+            depot_d = parse_node_line(
+                d_depot_line, node_type=NodeType.D_DEPOT, alias="Depot"
+            )
         except:
-            depot_d = NodeInfo(2*config.n_customers + 2,
-                               depot_o.x,
-                               depot_o.y,
-                               depot_o.service_duration,
-                               depot_o.load,
-                               depot_o.earliest,
-                               depot_o.latest,
-                               NodeType.D_DEPOT,
-                               "Depot",
-                               )
-        
-        
+            depot_d = NodeInfo(
+                2 * config.n_customers + 2,
+                depot_o.x,
+                depot_o.y,
+                depot_o.service_duration,
+                depot_o.load,
+                depot_o.earliest,
+                depot_o.latest,
+                NodeType.D_DEPOT,
+                "Depot",
+            )
+
         vehicles = [
             Vehicle(depot_o, depot_d, config.vehicle_capacity)
             for _ in range(config.n_vehicles)
         ]
 
         nodes = [depot_o] + pu_nodes + do_nodes + [depot_d]
-  
+
         return Instance(
-            vehicles,
-            requests,
-            nodes,
-            config,
-            instance_path,
-            "cordeau")
-    
+            vehicles, requests, nodes, config, instance_path, "cordeau"
+        )
+
+
 # def ropke_parser(instance_path):
 
 #     with open(instance_path, "r") as file:
@@ -133,13 +144,14 @@ def cordeau_parser(instance_path) -> Instance:
 #         return vehicles, requests, nodes, dist_matrix, config_dict
 
 
-parsers = {PARSER_TYPE_CORDEAU: cordeau_parser} #, PARSER_TYPE_ROPKE: ropke_parser}
+parsers = {
+    PARSER_TYPE_CORDEAU: cordeau_parser
+}  # , PARSER_TYPE_ROPKE: ropke_parser}
+
 
 def parse_instance_from_filepath(
-        instance_filepath,
-        instance_parser=PARSER_TYPE_CORDEAU
-    ) -> Instance:
-    
+    instance_filepath, instance_parser=PARSER_TYPE_CORDEAU
+) -> Instance:
     p = parsers[instance_parser]
     i = p(instance_filepath)
     return i

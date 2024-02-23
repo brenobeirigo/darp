@@ -78,9 +78,9 @@ def process_csv(file_path, destination_folder):
 
         download_content(link, folder)
 
+
 if __name__ == "__main__":
     config = load_config()
     process_csv(
-        config["FILEPATH_DATA_SOURCE"],
-        config["FOLDER_DATA_RAW_INSTANCES"]
+        config["FILEPATH_DATA_SOURCE"], config["FOLDER_DATA_RAW_INSTANCES"]
     )
