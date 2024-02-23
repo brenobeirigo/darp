@@ -60,6 +60,8 @@ class VehicleData:
     route: list[NodeData]
     
     
+    def summary(self):
+        return f"cost={self.D}"
     
     def __repr__(self):
         visits = " ".join(map(str, self.route))
