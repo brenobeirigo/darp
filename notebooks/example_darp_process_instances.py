@@ -9,7 +9,7 @@ from config import FOLDER_DATA_RAW_INSTANCES, FOLDER_RESULTS
 from src.solver.darp import Darp
 from src.data import parser as instance_parser
 from src.solution import parser as solution_parser
-import src.plot.route as route_plot
+import src.visualization.route as route_plot
 import json
 import logging
 

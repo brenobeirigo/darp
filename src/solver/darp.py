@@ -7,11 +7,11 @@ logger = logging.getLogger("__main__" + "." + __name__)
 
 from ..data.instance import Instance
 from ..solution.Solution import (
-    NodeData,
-    FleetData,
-    SolutionData,
-    SummaryData,
-    VehicleData,
+    SolutionNode,
+    SolutionFleet,
+    SolutionSolver,
+    SolutionSummary,
+    SolutionVehicle,
     Solution,
 )
 
@@ -588,8 +588,8 @@ class Darp:
         return self.solver.nodes()
 
     @property
-    def sol_(self) -> SolutionData:
-        return SolutionData(
+    def sol_(self) -> SolutionSolver:
+        return SolutionSolver(
             self.sol_objvalue_,
             self.sol_cputime_,
             self.graph_numedges_,
@@ -714,7 +714,7 @@ class Darp:
                 if self.var_Q_sol(k, i) > k_max_load:
                     k_max_load = self.var_Q_sol(k, i)
 
-                k_route_node_data[i] = NodeData(
+                k_route_node_data[i] = SolutionNode(
                     id=i,
                     w=waiting_at_node_i,
                     b=self.var_B_sol(k, i),
@@ -726,7 +726,7 @@ class Darp:
                 arrival = departure_from_node_i + self.dist(i, j)
 
             # Arrival at final depot
-            k_route_node_data[k_route_node_ids[-1]] = NodeData(
+            k_route_node_data[k_route_node_ids[-1]] = SolutionNode(
                 id=k_route_node_ids[-1],
                 w=0,
                 b=self.var_B_sol(k, k_route_node_ids[-1]),
@@ -758,9 +758,9 @@ class Darp:
             total_duration += k_total_duration
             total_cost += k_total_cost
 
-            fleet_solution[k] = VehicleData(
+            fleet_solution[k] = SolutionVehicle(
                 id=k,
-                D=k_total_duration,
+                D=k_total_cost,
                 Q=k_max_load,
                 W=k_total_waiting,
                 W_avg=k_avg_waiting,
@@ -769,7 +769,7 @@ class Darp:
                 route=list(k_route_node_data.values()),
             )
 
-        summary = SummaryData(
+        summary = SolutionSummary(
             cost=total_cost,
             total_duration=total_duration,
             total_waiting=total_waiting,
@@ -781,8 +781,8 @@ class Darp:
         return Solution(
             instance=self.instance,
             summary=summary,
-            solver_solution=self.sol_,
-            vehicle_solutions=fleet_solution,
+            solver_stats=self.sol_,
+            vehicle_routes=fleet_solution,
         )
 
     def solve(self) -> Solution:

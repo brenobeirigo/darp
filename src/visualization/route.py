@@ -7,7 +7,7 @@ import matplotlib.collections as mc
 import matplotlib.patches as patches
 from matplotlib.lines import Line2D
 from ..model.node import PickupNode, DropoffNode, Node, NodeInfo, NodeType
-from ..solution.Solution import NodeData, Solution
+from ..solution.Solution import SolutionNode, Solution
 from src.data.instance import Instance
 import seaborn as sns
 import pandas as pd
@@ -181,16 +181,16 @@ def plot_legend(axis):
 
 def plot_vehicle_route(
     axis,
-    visits: list[NodeData],
+    visits: list[SolutionNode],
     node_info: list[NodeInfo],
     route_color="k",
     coord_box=(-10, 10, -10, 10),
     show_arrows=True,
     show_nodes=True,
     show_node_labels=True,
-    arrowstyle="->",
-    linestyle="--",
-    linewidth=1,
+    arrowstyle="-|>",
+    linestyle="-",
+    linewidth=0.5,
     show_legend=True,
     x_title="x",
     y_title="y",
@@ -234,7 +234,7 @@ def plot_vehicle_route(
 
 
 def process_visits(
-    visits: list[NodeData], node_info: list[NodeInfo], tw=False
+    visits: list[SolutionNode], node_info: list[NodeInfo], tw=False
 ):
     """
     Process visit nodes.
@@ -332,7 +332,7 @@ def plot_multiple_routes(
     """
     Plot routes for multiple vehicles.
     """
-    v_nodes = {v.id: v.route for v in solution.vehicle_solutions}
+    v_nodes = {v.id: v.route for v in solution.vehicle_routes}
     cmap = get_cmap(len(v_nodes))
 
     for i, (v, visits) in enumerate(v_nodes.items()):

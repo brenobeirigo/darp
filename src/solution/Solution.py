@@ -32,7 +32,7 @@ NODE_PATTERN_PARRAGH = (
 
 
 @dataclass
-class NodeData:
+class SolutionNode:
     id: int
     w: float
     b: float
@@ -41,7 +41,7 @@ class NodeData:
 
     def __repr__(self) -> str:
         return (
-            f"{self.id} ("
+            f"{self.id:>3} ("
             f"w: {self.w:6.2f}; "
             f"b: {self.b:6.2f}; "
             f"t: {self.t:6.2f}; "
@@ -50,7 +50,7 @@ class NodeData:
 
 
 @dataclass
-class VehicleData:
+class SolutionVehicle:
     id: int
     D: float  # Duration = Departure 1st node - Arrival last node
     Q: float  # Max. load vehicle
@@ -58,19 +58,19 @@ class VehicleData:
     W_avg: float  # Avg. waiting at PUDO nodes (vehicle arrived earlier than earliest time)
     T: float
     T_avg: float  # Avg. transit time
-    route: list[NodeData]
+    route: list[SolutionNode]
 
     def summary(self):
-        return f"cost={self.D}"
+        return f"cost={self.D:6.2f}"
 
     def __repr__(self):
         visits = " ".join(map(str, self.route))
         return (
             f"{self.id} "
-            f"D:   {self.D:10.4f} "
-            f"Q: {self.Q:>2} "
-            f"W:    {self.W:10.4f} "
-            f"T:    {self.T:10.4f} "
+            f"D: {self.D:10.4f} "
+            f"Q: {int(self.Q):>2} "
+            f"W: {self.W:10.4f} "
+            f"T: {self.T:10.4f} "
             f"{visits}"
         )
 
@@ -225,7 +225,7 @@ class VehicleData:
 
 
 @dataclass
-class SummaryData:
+class SolutionSummary:
     cost: float
     total_duration: float
     total_waiting: float
@@ -235,7 +235,7 @@ class SummaryData:
 
 
 @dataclass
-class SolutionData:
+class SolutionSolver:
     sol_objvalue: float
     sol_cputime: float
     graph_numedges: int
@@ -247,18 +247,18 @@ class SolutionData:
 
 
 @dataclass
-class FleetData:
-    K: dict[int, VehicleData]
-    summary: SummaryData
-    solver: SolutionData
+class SolutionFleet:
+    K: dict[int, SolutionVehicle]
+    summary: SolutionSummary
+    solver: SolutionSolver
 
 
 @dataclass
 class Solution:
     instance: Instance
-    summary: SummaryData
-    solver_solution: SolutionData
-    vehicle_solutions: dict[VehicleData]
+    summary: SolutionSummary
+    solver_stats: SolutionSolver
+    vehicle_routes: dict[SolutionVehicle]
 
     def __repr__(self):
         return repr(self.summary)
@@ -276,7 +276,7 @@ class Solution:
                     n.q,
                     fn_dist(prev_n.id, n.id) if prev_n else 0,
                 )
-                for v in self.vehicle_solutions.values()
+                for v in self.vehicle_routes.values()
                 for prev_n, n in zip([None] + v.route[:-1], v.route)
             ],
             columns=[

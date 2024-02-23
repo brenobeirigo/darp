@@ -17,7 +17,7 @@ import logging
 if __name__ == "__main__":
     t_start = time()
     i: Instance = parse_instance_from_filepath(
-        "data/raw/darp_instances/darp_cordeau_2006/a2-8"
+        "data/raw/darp_instances/darp_cordeau_2006/a4-8"
     )
     # i : Instance = parse_instance_from_filepath("data/raw/darp_instances/darp_cordeau_2003/pr01")
     print("Time to load instance:", time() - t_start)
@@ -44,11 +44,11 @@ if __name__ == "__main__":
 
     # Create a Pandas DataFrame to exhibit the routes
     df = sol.route_df(fn_dist=model.dist)
-    print(df)
+    print(df.columns)
 
     print("Vehicle Routes:")
-    print(sol.vehicle_solutions)
-    for k, data in sol.vehicle_solutions.items():
+    print(sol.vehicle_routes)
+    for k, data in sol.vehicle_routes.items():
         print(data)
 
     print(i.nodeset_df)
@@ -57,11 +57,11 @@ if __name__ == "__main__":
 # %%
 
 import matplotlib.pyplot as plt
-from src.plot.route import plot_vehicle_route
+from src.visualization.route import plot_vehicle_route
 
 fig, ax = plt.subplots(1)
 vehicle_id = 0
-v = sol.vehicle_solutions[vehicle_id]
+v = sol.vehicle_routes[vehicle_id]
 plot_vehicle_route(
     ax,
     v.route,
@@ -74,5 +74,8 @@ plot_vehicle_route(
     arrowstyle="-|>",
     title=f"Route vehicle {vehicle_id} ({v.summary()})",
 )
+
+# plt.savefig(f"../reports/figures/route_v{vehicle_id:02}.svg")
+
 
 # %%

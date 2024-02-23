@@ -20,11 +20,11 @@ class Instance:
         vehicles: list[Vehicle],
         requests: list[Request],
         nodes: list[NodeInfo],
-        config_dict: InstanceConfig,
+        config: InstanceConfig,
         instance_filepath: str,
         instance_parser: str,
     ):
-        self.config_dict = config_dict
+        self.config_dict = config
         self.vehicles = vehicles
         self.requests = requests
         self.nodes = nodes
