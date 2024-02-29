@@ -95,7 +95,7 @@ def test_cordeau_parser():
     print("InstanceX", instance)
 
     assert (
-        instance.config_dict
+        instance.config
         == InstanceConfig(
             n_vehicles=2,
             n_customers=16,

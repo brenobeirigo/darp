@@ -24,7 +24,7 @@ class Instance:
         instance_filepath: str,
         instance_parser: str,
     ):
-        self.config_dict = config
+        self.config = config
         self.vehicles = vehicles
         self.requests = requests
         self.nodes = nodes
@@ -111,7 +111,7 @@ class Instance:
         Node.cleanup()
 
     def __str__(self) -> str:
-        output = str(self.config_dict)
+        output = str(self.config)
         output += "\n\n### Nodes:\n" + "\n".join(map(str, self.nodes))
         output += "\n\n### Requests:\n"
         output += "\n".join(map(str, self.requests))
