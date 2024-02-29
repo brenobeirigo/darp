@@ -1,4 +1,4 @@
-from src.solver.darp import Darp
+from ..src.solver.darp import Darp
 from pprint import pprint
 
 dist_matrix = {

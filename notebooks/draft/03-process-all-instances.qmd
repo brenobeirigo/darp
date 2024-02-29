@@ -85,7 +85,3 @@ for filename in instance_filenames:
 - Solves the model and logs the solution's objective value.
 - Parses the solution and saves it as a JSON file.
 - Plots the vehicle routes and saves the plot as a PDF file.
-
----
-
-This {python} documentation provides a detailed overview of the script, explaining each section and its purpose in the context of solving and visualizing DARP instances.
