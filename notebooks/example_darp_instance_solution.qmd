@@ -11,7 +11,9 @@ We will cover structuring the project, loading DARP instances, building and solv
 
 ## The Problem
 
-The *Dial-A-Ride Problem* (DARP) is a transportation and logistics challenge focusing on efficiently routing a fleet of vehicles, denoted by $k \in K$, to service passengers at designated pickup ($i \in P$) and drop-off ($j \in D$) points. The goal is to minimize the total travel cost, $c_{ijk}$, while ensuring each route starts and ends at a depot node ($o \in O$). Crucially, DARP requires adherence to users' specified earliest and latest service times, adding a layer of complexity to the scheduling process.
+The *Dial-A-Ride Problem* (DARP) is a transportation and logistics challenge focusing on efficiently routing a fleet of vehicles, denoted by $k \in K$, to service passengers at designated pickup ($i \in P$) and drop-off ($j \in D$) points.
+The goal is to minimize the total travel cost, $c_{ijk}$, while ensuring each route starts and ends at a depot node ($o \in O$).
+Crucially, DARP requires adherence to users' specified earliest and latest service times, adding a layer of complexity to the scheduling process.
 
 ## Step 1: Environment Setup
 
@@ -40,7 +42,8 @@ The project has several key directories:
 - **`data`**: Stores all project-related data, including raw and processed datasets.
 - **`notebooks`**: Contains Jupyter notebooks, where we execute our data processing, modeling, and visualization steps. The code for solving and visualizing the DARP is primarily located here.
 - **`references`**: Includes reference materials like papers and manuals relevant to the project.
-- **`reports/figures`**: Used for storing generated figures and plots, typically for reporting purposes.
+- **`reports/figures`**: Used for storing generated figures and plots.
+- **`reports/tables`**: Used for storing raw data (.csv) for report tables.
 - **`src`**: The source code directory with various subdirectories:
   - **`data`**: Contains `parser.py`, which handles parsing and loading data.
   - **`model`**: For model definitions and data schemas (e.g., "Vehicle", "Node", "Request" classes).
