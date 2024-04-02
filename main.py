@@ -1,9 +1,12 @@
 # %%
 
-from src import parse_instance_from_filepath, Instance
+from src import parse_instance_from_filepath, Instance, Solution
+
 import src.solver.darp as darp
 from time import time
+from pprint import pprint
 import logging
+logging.basicConfig(level=logging.DEBUG)
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -33,22 +36,21 @@ if __name__ == "__main__":
     print("Time to build the model:", time() - t_start)
 
     t_start = time()
-    sol = model.solve()
+    sol: Solution = model.solve()
     print("Time to solve the model:", time() - t_start)
 
-    # print("Calculated output:")
-    # print(sol)
+    print("\n### Solution summary:")
+    pprint(sol)
 
-    # print("Solver output:")
-    # print(sol.solver_solution)
+    print("\n### Solver output:")
+    pprint(sol.solver_stats)
 
     # Create a Pandas DataFrame to exhibit the routes
     df = sol.route_df(fn_dist=model.dist)
-    print(df.columns)
 
-    print("Vehicle Routes:")
-    print(sol.vehicle_routes)
+    
     for k, data in sol.vehicle_routes.items():
+        print(f"\n### Vehicle {k}")
         print(data)
 
     print(i.nodeset_df)
@@ -56,24 +58,24 @@ if __name__ == "__main__":
 
 # %%
 
-import matplotlib.pyplot as plt
-from src.visualization.route import plot_vehicle_route
+# import matplotlib.pyplot as plt
+# from src.visualization.route import plot_vehicle_route
 
-fig, ax = plt.subplots(1)
-vehicle_id = 0
-v = sol.vehicle_routes[vehicle_id]
-plot_vehicle_route(
-    ax,
-    v.route,
-    i.nodes,
-    show_arrows=True,
-    show_node_labels=True,
-    route_color="green",
-    linestyle="-",
-    linewidth=0.5,
-    arrowstyle="-|>",
-    title=f"Route vehicle {vehicle_id} ({v.summary()})",
-)
+
+# fig, ax = plt.subplots(1)
+# vehicle_id = 0
+# v = sol.vehicle_routes[vehicle_id]
+# print(v)
+# plot_vehicle_route(ax,df)
+#     ax,
+#     sol.route_df,
+#     show_arrows=True,
+#     show_node_labels=True,
+#     linestyle="-",
+#     linewidth=0.5,
+#     arrowstyle="-|>",
+#     title=f"Route vehicle {vehicle_id} ({v.summary()})",
+# )
 
 # plt.savefig(f"../reports/figures/route_v{vehicle_id:02}.svg")
 

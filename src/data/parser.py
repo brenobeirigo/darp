@@ -1,5 +1,5 @@
 from ..model.Request import Request
-from ..model.Vehicle import Vehicle
+from ..model.Vehicle import Vehicle, MDVRP, CVRP, create_vehicle
 from .instance import Instance, InstanceConfig
 import itertools
 from ..model.node import NodeInfo, NodeType
@@ -8,6 +8,7 @@ from ..model.node import Node, OriginNode, DestinationNode
 
 PARSER_TYPE_CORDEAU = "cordeau_2006"
 PARSER_TYPE_ROPKE = "ropke_2007"
+PARSER_TYPE_MVRPPDTW = "mvrppdtw"
 
 
 def parse_node_line(
@@ -105,7 +106,12 @@ def cordeau_parser(instance_path) -> Instance:
             )
 
         vehicles = [
-            Vehicle(depot_o, depot_d, config.vehicle_capacity)
+            create_vehicle(
+                problem_type=CVRP,
+                capacity=config.vehicle_capacity,
+                node_o=depot_o,
+                node_d=depot_d)
+            
             for _ in range(config.n_vehicles)
         ]
 
@@ -115,6 +121,188 @@ def cordeau_parser(instance_path) -> Instance:
             vehicles, requests, nodes, config, instance_path, "cordeau"
         )
 
+
+def vrppd_instance_to_dict(instance_path):
+
+    with open(instance_path, "r") as file:
+        lines = file.readlines()
+
+        # Initialize dictionary structure
+        instance_dict = {
+            "grid_cardinality": int(lines[1]),
+            "pickup_locations_count": int(lines[3]),
+            "delivery_locations_count": int(lines[5]),
+            "depots_count": int(lines[7]),
+            "trucks": {
+                "total_number": int(lines[9]),
+                "capacity": int(lines[11]),
+                "max_working_hours": int(lines[13])*60,
+                "revenue_per_load_unit": int(lines[15]),  # Assume revenue is followed by "[e/kg]"
+                "cost_per_min":20/60,
+                "cost_per_km":0.05*0.2,
+                "speed_km_h":50
+            },
+            "depots": [],
+            "pickup_locations": [],
+            "delivery_locations": [],
+        }
+
+        
+
+
+        # Parsing depots
+        line_index = 18  # Starting line index for depots
+        for _ in range(instance_dict["depots_count"]):
+            parts = lines[line_index].split()
+            instance_dict["depots"].append({
+                "node_ID": int(parts[0]),
+                "x_coord": float(parts[1]),
+                "y_coord": float(parts[2]),
+                "demand": float(parts[3]),
+                "tw_start": float(parts[4])*60,
+                "tw_end": float(parts[5])*60,
+            })
+            line_index += 1
+
+        # Skip to pickup locations
+        line_index += 2  # Skipping the header of the next section
+        for _ in range(instance_dict["pickup_locations_count"]):
+            parts = lines[line_index].split()
+            instance_dict["pickup_locations"].append({
+                "node_ID": int(parts[0]),
+                "x_coord": float(parts[1]),
+                "y_coord": float(parts[2]),
+                "demand": float(parts[3]),
+                "tw_start": float(parts[4])*60,
+                "tw_end": float(parts[5])*60,
+            })
+            line_index += 1
+
+        
+        # Skip to delivery locations
+        line_index += 2  # Skipping the header of the next section
+        for _ in range(instance_dict["delivery_locations_count"]):
+            parts = lines[line_index].split()
+            instance_dict["delivery_locations"].append({
+                "node_ID": int(parts[0]),
+                "x_coord": float(parts[1]),
+                "y_coord": float(parts[2]),
+                "demand": float(parts[3]),
+                "tw_start": float(parts[4])*60,
+                "tw_end": float(parts[5])*60,
+            })
+            line_index += 1
+
+
+        return instance_dict
+
+def vrppd_dict_to_instance_obj(instance_dict, instance_path=""):
+    config = InstanceConfig(
+        n_vehicles=instance_dict["trucks"]["total_number"],
+        n_customers=len(instance_dict["pickup_locations"]),
+        n_depots=len(instance_dict["depots"]),
+        vehicle_capacity=instance_dict["trucks"]["capacity"],
+        maximum_ride_time_min=instance_dict["trucks"]["max_working_hours"],
+        time_horizon_min=instance_dict["trucks"]["max_working_hours"],
+    )
+    
+    depots_o = []
+    depots_d = []
+    for depot_info in instance_dict["depots"]:
+        depot_o = NodeInfo(
+            id=depot_info["node_ID"],
+            x=depot_info["x_coord"],
+            y=depot_info["y_coord"],
+            service_duration=0,
+            load=depot_info["demand"],
+            earliest=depot_info["tw_start"],
+            latest=depot_info["tw_end"],
+            type=NodeType.O_DEPOT,
+        )
+        depots_o.append(depot_o)
+
+        depot_d = NodeInfo(
+            id=depot_info["node_ID"] + 2*config.n_customers + config.n_depots,
+            x=depot_info["x_coord"],
+            y=depot_info["y_coord"],
+            service_duration=0,
+            load=depot_info["demand"],
+            earliest=depot_info["tw_start"],
+            latest=depot_info["tw_end"],
+            type=NodeType.D_DEPOT,
+        )
+
+        depots_d.append(depot_d)
+    
+    pickup_nodes = []
+
+    for pickup_info in instance_dict["pickup_locations"]:
+        pickup_node = NodeInfo(
+            id=pickup_info["node_ID"],
+            x=pickup_info["x_coord"],
+            y=pickup_info["y_coord"],
+            service_duration=0,
+            load=pickup_info["demand"],
+            earliest=pickup_info["tw_start"],
+            latest=pickup_info["tw_end"],
+            type=NodeType.PU,
+        )
+        pickup_nodes.append(pickup_node)
+
+    dropoff_nodes = []
+
+    for delivery_info in instance_dict["delivery_locations"]:
+        dropoff_node = NodeInfo(
+            id=delivery_info["node_ID"],
+            x=delivery_info["x_coord"],
+            y=delivery_info["y_coord"],
+            service_duration=0,
+            load=delivery_info["demand"],
+            earliest=delivery_info["tw_start"],
+            latest=delivery_info["tw_end"],
+            type=NodeType.DO,
+            alias=f"{delivery_info['node_ID'] - config.n_customers}*",
+        )
+        dropoff_nodes.append(dropoff_node)
+
+    requests = []
+    for o, d in zip(pickup_nodes, dropoff_nodes):
+        r = Request(o,d,max_ride_time=config.time_horizon_min)
+        requests.append(r)
+                
+    vehicles = [
+            create_vehicle(
+                problem_type=MDVRP,
+                capacity=config.vehicle_capacity,
+                cost_per_min=instance_dict["trucks"]["cost_per_min"],
+                cost_per_km=instance_dict["trucks"]["cost_per_km"],
+                speed_km_h=instance_dict["trucks"]["speed_km_h"],
+                revenue_per_load_unit=instance_dict["trucks"]["revenue_per_load_unit"],
+    )
+            for _ in range(config.n_vehicles)
+        ]
+    
+    nodes = depots_o + pickup_nodes + dropoff_nodes + depots_d
+    from pprint import pprint
+    pprint(nodes)
+    return Instance(
+            vehicles,
+            requests,
+            nodes,
+            config,
+            instance_path,
+            PARSER_TYPE_MVRPPDTW
+        )
+# Adapted `cordeau_parser` to match the provided instance structure
+def vrppd_parser(instance_path):
+    
+    from pprint import pprint
+    instance_dict = vrppd_instance_to_dict(instance_path)
+    pprint(instance_dict)
+
+    return vrppd_dict_to_instance_obj(
+        instance_dict,
+        instance_path=instance_path)
 
 # def ropke_parser(instance_path):
 
@@ -145,7 +333,8 @@ def cordeau_parser(instance_path) -> Instance:
 
 
 parsers = {
-    PARSER_TYPE_CORDEAU: cordeau_parser
+    PARSER_TYPE_CORDEAU: cordeau_parser,
+    PARSER_TYPE_MVRPPDTW: vrppd_parser
 }  # , PARSER_TYPE_ROPKE: ropke_parser}
 
 

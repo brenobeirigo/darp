@@ -1,66 +1,60 @@
 from collections import deque
 from ..model.node import OriginNode, DestinationNode, NodeInfo
-from ..model.Route import Route
 
-# depot_o = parse_node_line(origin_line, node_type=NodeType.O_DEPOT)
-#     depot_d = parse_node_line(destination_line, node_type=NodeType.D_DEPOT)
 
-#     return Vehicle(
-#         o_id,
-#         vehicle_capacity,
-#         origin_point=o_point,
-#         destination_id=d_id,
-#         destination_point=d_point,
-#         origin_earliest_time=o_earliest,
-#         origin_latest_time=o_latest,
-#         destination_earliest_time=d_earliest,
-#         destination_latest_time=d_latest,
-#     )
+def create_vehicle(
+    problem_type,
+    capacity,
+    node_o=None,
+    node_d=None,
+    cost_per_min=0,
+    cost_per_km=1,
+    speed_km_h=60,
+    revenue_per_load_unit=20,
+    alias=None,
+    open_trip=False):
+    if problem_type == MDVRP:
+        return VehicleMDVRP(capacity, cost_per_min, cost_per_km, speed_km_h, revenue_per_load_unit,  alias=alias)
+    elif problem_type == CVRP:
+        return VehicleCVRP(node_o, node_d, capacity, alias=alias, open_trip=open_trip)
+    else:
+        raise ValueError("Invalid vehicle type")
 
+
+MDVRP = "MDVRP"
+CVRP = "CVRP"
 
 class Vehicle:
     count = 0
 
     def __init__(
-        self,
-        node_o: NodeInfo,
-        node_d: NodeInfo,
+            self,
         capacity: int,
+        cost_per_min=0,
+        cost_per_km=0,
+        speed_km_h=0,
+        revenue_per_load_unit=0,
         alias="",
-        open_trip=False,
     ):
+        
         self.id = Vehicle.count
-        self.alias = alias if alias else self.id
-        self.origin_node = OriginNode(node_o, self)
-        self.node_o = node_o
-        self.node_d = node_d
-
-        # In some contexts (Open VRP), a vehicle does not return to the
-        # depot after servicing the last customer.
-        self.open_trip = open_trip
-
-        # If closed trip, destination node is either
-        # - The origin node
-        # - Another node destination node
-
-        if not open_trip:
-            self.destination_node = (
-                DestinationNode(node_d, self)
-                if node_d is not None
-                else DestinationNode(node_o, self)
-            )
-        else:
-            self.destination_node = None
-
         self.capacity = capacity
-        self.origin_node.arrival = node_o.earliest
-        # TODO Logic for adding routes to vehicles
-        # self.route = Route(self.origin_node)
         self.alias = alias if alias else f"V{str(self.id)}"
         self.passengers = deque(maxlen=self.capacity)
         self.requests = list()
 
+        self.origin_node = None
+        self.destination_node = None
+        self.node_o = None
+        self.node_d = None
+        
+        self.cost_per_min = cost_per_min
+        self.cost_per_km =cost_per_km
+        self.speed_km_h =speed_km_h
+        self.revenue_per_load_unit =revenue_per_load_unit
+        
         Vehicle.count += 1
+        self.requests = list()
 
     @property
     def origin_tw(self):
@@ -96,3 +90,58 @@ class Vehicle:
 
     def assign(self, request):
         self.requests.append(request)
+
+
+
+class VehicleMDVRP(Vehicle):
+    def __init__(
+        self, capacity: int,
+        cost_per_min,
+        cost_per_km,
+        speed_km_h,
+        revenue_per_load_unit,
+        alias=None,
+    ):
+        super().__init__(capacity, alias)
+        self.cost_per_min=cost_per_min
+        self.cost_per_km=cost_per_km
+        self.speed_km_h=speed_km_h
+        self.revenue_per_load_unit = revenue_per_load_unit
+        self.passengers = list()
+    
+class VehicleCVRP(Vehicle):
+
+    def __init__(
+        self,
+        node_o: NodeInfo,
+        node_d: NodeInfo,
+        capacity: int,
+        alias=None,
+        open_trip=False,
+    ):
+        super().__init__(capacity, alias=alias)
+
+        self.origin_node = OriginNode(node_o, self)
+        self.node_o = node_o
+        self.node_d = node_d
+
+        # In some contexts (Open VRP), a vehicle does not return to the
+        # depot after servicing the last customer.
+        self.open_trip = open_trip
+
+        # If closed trip, destination node is either
+        # - The origin node
+        # - Another node destination node
+
+        if not open_trip:
+            self.destination_node = (
+                DestinationNode(node_d, self)
+                if node_d is not None
+                else DestinationNode(node_o, self)
+            )
+        else:
+            self.destination_node = None
+
+        self.origin_node.arrival = node_o.earliest
+        self.passengers = deque(maxlen=self.capacity)
+        self.requests = list()

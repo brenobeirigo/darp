@@ -229,6 +229,9 @@ def plot_vehicle_route(
     Plot a single vehicle route using DataFrame.
     """
 
+    if not axis:
+        fig, axis = plt.subplots()
+
     if show_arrows:
         plot_arrows(axis, df, route_color, arrowstyle, linestyle, linewidth)
     else:

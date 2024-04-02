@@ -1,9 +1,16 @@
 from collections import defaultdict, OrderedDict
 from ortools.linear_solver import pywraplp
 import logging
+from pprint import pprint
 
 logger = logging.getLogger("__main__" + "." + __name__)
 
+OBJ_MIN_COST = "obj_cost"
+OBJ_MAX_PROFIT = "obj_profit"
+OBJ_MIN_TOTAL_LATENCY = "obj_latency"
+OBJ_MIN_FINAL_MAKESPAN = "obj_makespan"
+CONSTR_FLEXIBLE_DEPOT = "constr_flexible_depot"
+CONSTR_FIXED_DEPOT = "constr_fixed_depot"
 
 from ..data.instance import Instance
 from ..solution.Solution import (
@@ -17,18 +24,21 @@ from ..solution.Solution import (
 
 
 def get_node_set(
-    P: list[str], D: list[str], origin_depot: str, destination_depot: str
+    P: list[str], D: list[str], origin_depot: list[str], destination_depot: list[str]
 ):
-    return [origin_depot] + P + D + [destination_depot]
+    return origin_depot + P + D + destination_depot
 
 
 def get_arc_set(
-    P: list[str], D: list[str], origin_depot: str, destination_depot: str
+    P: list[str],
+    D: list[str],
+    origin_depot: list[str],
+    destination_depot: list[str]
 ):
     N = get_node_set(P, D, origin_depot, destination_depot)
     n = len(P)  # Number of requests
 
-    origin_pickup_arcs = {(N[0], j) for j in P}
+    origin_pickup_arcs = {(o, j) for j in P for o in origin_depot}
 
     pd_dp_arcs = [
         (i, j)
@@ -40,26 +50,44 @@ def get_arc_set(
         and (N.index(i) != n + N.index(j))
     ]
 
-    delivery_terminal_arcs = [(i, N[2 * n + 1]) for i in D]
+    delivery_terminal_arcs = [
+        (i, d)
+        for i in D
+        for d in destination_depot]
 
     # Vehicles travel directly to end depot when they are not assign to
     # users (equivalent to not leaving the depot)
-    loop_depot_arcs = [(N[0], N[2 * n + 1])]
+    loop_depot_arcs = [
+        (o, d)
+        for o in origin_depot
+        for d in destination_depot]
 
     return origin_pickup_arcs.union(
-        set(pd_dp_arcs), set(delivery_terminal_arcs), set(loop_depot_arcs)
+        set(pd_dp_arcs),
+        set(delivery_terminal_arcs),
+        set(loop_depot_arcs)
     )
 
 
 class Darp:
     def __init__(self, i: Instance):
         self.instance = i
-        self.init(**i.get_data())
+        dict_data = i.get_data()
+        self.init(**dict_data)
+        self.init_solver()
 
+
+        # self. = wrapper_time_matrix
+    def travel_time_min(self, k, i, j):
+        km_min = self.K_params[k]["speed_km_h"]/60
+        travel_time_min = self.dist(i,j)/km_min
+        return travel_time_min
+    
     def init(
         self,
         origin_depot,
         K,
+        K_params,
         Q,
         P,
         D,
@@ -70,11 +98,12 @@ class Darp:
         dist_matrix,
         total_horizon,
         destination_depot=None,
-        open_trip=False,
     ):
         self.origin_depot = origin_depot
-
+        self.destination_depot = destination_depot
+        self.dist_matrix = dist_matrix,
         self.total_horizon = total_horizon
+        self.K_params = K_params
 
         # Vehicle data
         self.K = K  # Set of vehicles
@@ -85,18 +114,18 @@ class Darp:
         self.d = d  # Service duration at node i
         self.q = q  # Amount loaded onto vehicle at node i (q_i = q_{n+i})
         self.el = el  # Earliest and latest times to reach nodes
-
         # If destination depot is not set, create an artificial
-        if destination_depot is None:
-            self.destination_depot = f"{str(origin_depot)}*"
-            self.q[self.destination_depot] = self.q[self.origin_depot]
-            self.el[self.destination_depot] = self.el[self.origin_depot]
-        else:
-            self.destination_depot = destination_depot
+        # if destination_depot is None:
+        #     self.destination_depot = f"{str(origin_depot)}*"
+        #     self.q[self.destination_depot] = self.q[self.origin_depot]
+        #     self.el[self.destination_depot] = self.el[self.origin_depot]
+        # else:
+        #     self.destination_depot = destination_depot
 
         # Graph data
         self.P = P  # Pickup locations
         self.n = len(P)  # Number of requests
+        self.n_depots = len(self.origin_depot)
         self.D = D  # Delivery locations
         # Node set
         self.N = get_node_set(
@@ -126,30 +155,21 @@ class Darp:
                 if self.Q[k] >= abs(self.q[i]):
                     self.K_N_valid[k].add(i)
 
+
         def wrapper_dist_matrix(i, j):
             # Trips to dummy aux. depot have no cost
-            is_trip_to_aux_depot = j == self.destination_depot and open_trip
-            return 0 if is_trip_to_aux_depot else dist_matrix[i][j]
+            return dist_matrix[i][j]
 
         self.dist = wrapper_dist_matrix
 
+        # 50km = 60 min
+        # dist = x
+
+    def init_solver(self):
         # Create the mip solver with the SCIP backend
         self.solver = pywraplp.Solver.CreateSolver("SCIP")
-
-        ###### VARIABLES ###############################################
-
-        # 1 if the kth vehicles goes straight from node i to node j
-        self.var_x = {}
-
-        # When vehicle k starts visiting node i
-        self.var_B = {}
-
-        # The load of vehicle k after visiting node i
-        self.var_Q = {}
-
-        # The ride time of request i on vehicle k
-        self.var_L = {}
-
+        self.solver.set_time_limit(10*60*1000)
+        self.solver.EnableOutput()
         self.solution_ = None
 
     def __str__(self):
@@ -158,10 +178,28 @@ class Darp:
         )
         return f"{type(self).__name__}({input_data_str})"
 
+    def set_obj(self, obj):
+        if obj == OBJ_MIN_COST:
+            self.set_objfunc_min_distance_traveled()
+        elif obj == OBJ_MAX_PROFIT:
+            self.set_objfunc_max_profit()
+        elif obj == OBJ_MIN_TOTAL_LATENCY:
+            self.set_objfunc_min_total_latency()
+        elif obj == OBJ_MIN_FINAL_MAKESPAN:
+            self.set_objfunc_min_total_makespan()
+        else:
+            self.set_objfunc_min_distance_traveled()
+            
+        return self
+
+    def set_flex_depot(self, flex):
+        if not flex:
+            self.constr_vehicle_start_and_end_terminal_are_equal()
+        return self
+        
     def build(self):
         self.declare_variables()
         self.set_constraints()
-        self.set_objfunc_min_distance_traveled()
 
     def build_solve(self):
         self.build()
@@ -171,8 +209,8 @@ class Darp:
         # Routing constraints
         self.constr_every_request_is_served_exactly_once()
         self.constr_same_vehicle_services_pickup_and_delivery()
-        self.constr_every_vehicle_leaves_the_start_terminal()
         self.constr_the_same_vehicle_that_enters_a_node_leaves_the_node()
+        self.constr_every_vehicle_leaves_the_start_terminal()
         self.constr_every_vehicle_enters_the_end_terminal()
 
         # Time constraints
@@ -187,6 +225,8 @@ class Darp:
         self.constr_vehicle_starts_empty()
         self.constr_vehicle_ends_empty()
         # self.constr_vehicle_only_visits_valid_nodes()
+        
+        self.constr_makespan()
 
     ####################################################################
     ####################################################################
@@ -195,10 +235,30 @@ class Darp:
     ####################################################################
 
     def declare_variables(self):
+
+        ###### VARIABLES ###############################################
+
+        # 1 if the kth vehicles goes straight from node i to node j
+        self.var_x = {}
+
+        # When vehicle k starts visiting node i
+        self.var_B = {}
+
+        # The load of vehicle k after visiting node i
+        self.var_Q = {}
+
+        # The ride time of request i on vehicle k
+        self.var_L = {}
+        
+
         self.declare_decision_vars()
         self.declare_arrival_vars()
         self.declare_load_vars()
         self.declare_ridetime_vars()
+        
+        # The max arrival time at the depot across the fleet
+        self.var_makespan =self.solver.NumVar(0, self.total_horizon, f"var_makespan")
+
 
     def declare_decision_vars(self):
         self.var_x = dict()
@@ -253,6 +313,23 @@ class Darp:
         self.solver.Minimize(self.solver.Sum(obj_expr))
 
         logger.debug("objective_function_min_total_waiting")
+    
+    def set_objfunc_min_total_latency(self):
+        obj_expr = [
+            self.var_B[k][i]
+            for k in self.K
+            for i in self.P + self.D
+        ]
+
+        self.solver.Minimize(self.solver.Sum(obj_expr))
+
+        logger.debug("objective_function_min_total_latency")
+    
+    def set_objfunc_min_total_makespan(self):
+        
+        self.solver.Minimize(self.var_makespan)
+
+        logger.debug("objective_function_min_total_makespan")
 
     def set_objfunc_min_distance_traveled(self):
         obj_expr = [
@@ -264,6 +341,43 @@ class Darp:
         self.solver.Minimize(self.solver.Sum(obj_expr))
 
         logger.debug("objective_function_min_distance_traveled")
+        
+    def set_objfunc_max_profit(self):
+        
+        obj_expr = []
+        for k in self.K:
+            driving_time = sum(self.var_B[k][d] for d in self.destination_depot) - sum(self.var_B[k][o] for o in self.origin_depot)
+            total_cost_per_min = (self.K_params[k]["cost_per_min"] *driving_time)
+            logger.debug(f"obj_driving_{k}_cost_per_min={self.K_params[k]['cost_per_min']:06.2f}")
+            obj_expr.append(-total_cost_per_min)
+            
+            for i, j in self.A:
+                total_travel_cost_per_km = (
+                    self.K_params[k]["cost_per_km"]
+                    * self.dist(i, j) 
+                    * self.var_x[k][i][j])
+                logger.debug(
+                    f"obj_{k}_travels_{i}-{j}_"
+                    f"cost_per_km={self.K_params[k]['cost_per_km']:06.2f}_times_"
+                    f"dist={self.dist(i, j):06.2f}_is_"
+                    f"{self.dist(i, j) * self.K_params[k]['cost_per_km']:06.2f}"
+                    )
+                obj_expr.append(-total_travel_cost_per_km)
+                
+                
+                revenue_load = 0
+                if i in self.P:
+                    revenue_load = (
+                        self.K_params[k]["revenue_per_load_unit"]
+                        *self.var_x[k][i][j]
+                        *self.q[i])
+                    logger.debug(f"obj_{k}_picks_{i}_revenue_{self.K_params[k]['revenue_per_load_unit']:06.2f}_load_{self.q[i]}")
+                    
+                    obj_expr.append(revenue_load)
+
+        self.solver.Maximize(self.solver.Sum(obj_expr))
+
+        logger.debug("objective_function_min_distance_traveled")
 
     ####################################################################
     ####################################################################
@@ -271,6 +385,13 @@ class Darp:
     ####################################################################
     ####################################################################
 
+    def constr_makespan(self):
+        for k in self.K:
+            for d in self.destination_depot:
+                constr_label = f"makespan_{k}_depot_{d}"
+                self.solver.Add(self.var_makespan >= self.var_B[k][d])
+                logger.debug(constr_label)
+            
     def constr_every_request_is_served_exactly_once(self):
         for i in self.P:
             constr_label = f"request_{i}_is_served_exactly_once"
@@ -290,7 +411,7 @@ class Darp:
     def constr_same_vehicle_services_pickup_and_delivery(self):
         for k in self.K:
             for idx_i, i in enumerate(self.P):
-                dest_i = self.N[self.n + idx_i + 1]
+                dest_i = self.N[self.n + idx_i + self.n_depots]
 
                 constr_label = (
                     f"vehicle_{k}_"
@@ -313,13 +434,26 @@ class Darp:
     def constr_every_vehicle_leaves_the_start_terminal(self):
         for k in self.K:
             constr_label = (
-                f"vehicle_{k}_" f"leaves_start_terminal_{self.origin_depot}"
+                f"vehicle_{k}_" f"leaves_an_start_terminal"
             )
 
+            for o in self.origin_depot:
+                rhs = self.l[o] * sum(self.var_x[k][o][i] for i in self.N_outbound[o])
+                constr_label_o_visit = f"vehicle_{k}_arrives_at_o={o}_only_if_visits"
+                self.solver.Add(self.var_B[k][o] <= rhs, constr_label_o_visit)
+                logger.debug(constr_label_o_visit)
+            
+            for d in self.destination_depot:
+                constr_label_d_visit = f"vehicle_{k}_arrives_at_d={d}_only_if_Visits"
+                rhs = self.l[d] * sum(self.var_x[k][i][d] for i in self.N_inbound[d])
+                self.solver.Add(self.var_B[k][d] <= rhs, constr_label_d_visit)
+                logger.debug(constr_label_d_visit)
+                
             self.solver.Add(
                 sum(
-                    self.var_x[k][self.origin_depot][j]
-                    for j in self.N_outbound[self.origin_depot]
+                    self.var_x[k][o][j]
+                    for o in self.origin_depot
+                    for j in self.N_outbound[o]
                 )
                 == 1,
                 constr_label,
@@ -341,17 +475,44 @@ class Darp:
 
                 logger.debug(constr_label)
 
+    def constr_vehicle_start_and_end_terminal_are_equal(self):
+
+        for o in self.origin_depot:
+            for k in self.K:
+
+                d = o + self.n_depots + 2*self.n
+
+                constr_label = (
+                    f"vehicle_{k}_"
+                    f"departs_from_{o}_and_"
+                    f"finishes_at_{d}"
+                )
+
+                lhs = sum(
+                    self.var_x[k][o][j]
+                    for j in self.N_outbound[o]
+                )
+
+                rhs = sum(
+                    self.var_x[k][j][d]
+                    for j in self.N_inbound[d]
+                )
+                self.solver.Add(lhs == rhs, constr_label)
+
+            logger.debug(constr_label)
+
     def constr_every_vehicle_enters_the_end_terminal(self):
         for k in self.K:
             constr_label = (
                 f"vehicle_{k}_"
-                f"enters_the_end_terminal_{self.destination_depot}"
+                f"enters_an_end_terminal"
             )
 
             self.solver.Add(
                 sum(
-                    self.var_x[k][j][self.destination_depot]
-                    for j in self.N_inbound[self.destination_depot]
+                    self.var_x[k][j][d]
+                    for d in self.destination_depot
+                    for j in self.N_inbound[d]
                 )
                 == 1,
                 constr_label,
@@ -376,22 +537,22 @@ class Darp:
         for k in self.K:
             for i, j in self.A:
                 BIGM_ijk = max(
-                    [0, self.l[i] + self.dist(i, j) + self.d[i] - self.e[j]]
+                    [0, self.l[i] + self.travel_time_min(k, i, j) + self.d[i] - self.e[j]]
                 )
 
                 constr_label = (
                     f"vehicle_{k}_arrives_at_{j}"
                     f"_after_arrival_at_{i}_plus_"
-                    f"service={self.d[i]}_and_"
-                    f"t={round(self.dist(i,j),1)}_"
-                    f"BIGM_{round(BIGM_ijk,1)}"
+                    f"service={self.d[i]:02d}_and_"
+                    f"t={self.travel_time_min(k,i,j):06.2f}_"
+                    f"BIGM_{BIGM_ijk:06.2f}"
                 )
 
                 self.solver.Add(
                     self.var_B[k][j]
                     >= self.var_B[k][i]
                     + self.d[i]
-                    + self.dist(i, j)
+                    + self.travel_time_min(k, i, j)
                     - BIGM_ijk * (1 - self.var_x[k][i][j]),
                     constr_label,
                 )
@@ -425,7 +586,7 @@ class Darp:
     def constr_ensure_feasible_ride_times(self):
         for k in self.K:
             for idx, i in enumerate(self.P):
-                dest_i = self.N[idx + self.n + 1]
+                dest_i = self.N[idx + self.n + self.n_depots]
 
                 constr_label = (
                     f"set_ride_time_of_{i}(service={self.d[i]})_"
@@ -444,15 +605,15 @@ class Darp:
     def constr_ride_times_are_lower_than_request_thresholds(self):
         for k in self.K:
             for idx, i in enumerate(self.P):
-                dest_i = self.N[self.n + idx + 1]
+                dest_i = self.N[self.n + idx + self.n_depots]
 
                 constr_label_lower = (
                     f"trip_from_{i}_to_{dest_i}_inside_vehicle_{k}_"
-                    f"lasts_at_least_{round(self.dist(i,dest_i),1)}"
+                    f"lasts_at_least_{round(self.travel_time_min(k, i,dest_i),10)}"
                 )
 
                 self.solver.Add(
-                    self.var_L[k][i] >= self.dist(i, dest_i),
+                    self.var_L[k][i] >= self.travel_time_min(k, i, dest_i),
                     constr_label_lower,
                 )
 
@@ -470,25 +631,27 @@ class Darp:
 
     def constr_vehicle_starts_empty(self):
         for k in self.K:
-            constr_label = f"{k}_starts_empty_from_{self.origin_depot}"
+            for o in self.origin_depot:
+                constr_label = f"{k}_starts_empty_from_{o}"
 
-            self.solver.Add(
-                self.var_Q[k][self.origin_depot] == 0,
-                constr_label,
-            )
+                self.solver.Add(
+                    self.var_Q[k][o] == 0,
+                    constr_label,
+                )
 
-            logger.debug(constr_label)
+                logger.debug(constr_label)
 
     def constr_vehicle_ends_empty(self):
-        for k in self.K:
-            constr_label = f"{k}_ends_empty_at_{self.destination_depot}"
+        for d in self.destination_depot:
+            for k in self.K:
+                constr_label = f"{k}_ends_empty_at_{d}"
 
-            self.solver.Add(
-                self.var_Q[k][self.destination_depot] == 0,
-                constr_label,
-            )
+                self.solver.Add(
+                    self.var_Q[k][d] == 0,
+                    constr_label,
+                )
 
-            logger.debug(constr_label)
+                logger.debug(constr_label)
 
     def constr_ensure_feasible_vehicle_loads(self):
         for k in self.K:
@@ -556,6 +719,22 @@ class Darp:
     ####################################################################
 
     @property
+    def solver_gap_(self):
+        # Assuming 'solver' is your OR-Tools solver instance after solving the problem
+        objective = self.solver.Objective()
+
+        # Get the best known objective value
+        best_known_objective_value = objective.Value()
+
+        # Get the best bound on the objective value
+        best_bound = objective.BestBound()
+        if best_known_objective_value > 0:
+            gap = abs((best_known_objective_value - best_bound) / best_known_objective_value) * 100
+        else:
+            gap = 0
+        return gap
+
+    @property
     def solver_numvars_(self):
         return self.solver.NumVariables()
 
@@ -598,6 +777,7 @@ class Darp:
             self.solver_numvars_,
             self.solver_numiterations_,
             self.solver_numnodes_,
+            self.solver_gap_,
         )
 
     def var_B_sol(self, k, i):
@@ -614,12 +794,15 @@ class Darp:
 
     def get_dict_route_vehicle(self, edges):
         dict_vehicle_arcs = defaultdict(lambda: defaultdict(str))
+        dict_vehicle_origin = dict()
         for k, i, j in edges:
             dict_vehicle_arcs[k][i] = j
+            if i in self.origin_depot:
+                dict_vehicle_origin[k] = i
 
         dict_route_vehicle = dict()
         for k, from_to in dict_vehicle_arcs.items():
-            node_id = self.origin_depot
+            node_id = dict_vehicle_origin[k]
             ordered_list = list()
 
             while True:
@@ -687,16 +870,20 @@ class Darp:
         vehicle_routes_dict = self.get_vehicle_routes_dict()
         for k in self.K:
             k_route_node_ids = vehicle_routes_dict[k]
-            logger.debug("Route:", k, k_route_node_ids)
+            logger.debug(f"Route: {k} - {k_route_node_ids}")
 
             k_route_node_data = OrderedDict()
 
             k_total_cost = 0
+            k_total_distance_traveled = 0
             k_max_load = 0
             k_edges = list(zip(k_route_node_ids[:-1], k_route_node_ids[1:]))
             arrival = 0
             for i, j in k_edges:
+                
                 k_total_cost += self.dist(i, j)
+                k_total_distance_traveled += self.dist(i,j)
+                
                 ride_delay = 0
                 if i in self.D:
                     pickup_i = self.N[self.N.index(i) - self.n]
@@ -723,7 +910,7 @@ class Darp:
                 )
 
                 # print(f"arrival({i:>6}) = {arrival:8.3f} / {self.var_B_sol(k,i):7.3f} (w:{vehicle_waiting_node:>8.3f}) \t\t departure({i:>6}) = {departure:8.3f} \t\t dist({i:>6},{j:>6}) = {self.dist(i,j):7.3f} / ({total_distance:7.3f}) + d[{i:>6}] = {self.d[i]:7.3f} \t\t ({self.e[i]:7},{self.l[i]:7}) \t\t node w: {node_waiting:7.3f}")
-                arrival = departure_from_node_i + self.dist(i, j)
+                arrival = departure_from_node_i + self.travel_time_min(k, i, j)
 
             # Arrival at final depot
             k_route_node_data[k_route_node_ids[-1]] = SolutionNode(

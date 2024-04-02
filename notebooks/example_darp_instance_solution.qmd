@@ -43,7 +43,7 @@ The project has several key directories:
 - **`notebooks`**: Contains Jupyter notebooks, where we execute our data processing, modeling, and visualization steps. The code for solving and visualizing the DARP is primarily located here.
 - **`references`**: Includes reference materials like papers and manuals relevant to the project.
 - **`reports/figures`**: Used for storing generated figures and plots.
-- **`reports/tables`**: Used for storing raw data (.csv) for report tables.
+- **`reports/tables`**: Used for storing generated tables (.csv).
 - **`src`**: The source code directory with various subdirectories:
   - **`data`**: Contains `parser.py`, which handles parsing and loading data.
   - **`model`**: For model definitions and data schemas (e.g., "Vehicle", "Node", "Request" classes).

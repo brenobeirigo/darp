@@ -2,7 +2,7 @@ from src.data import parser
 from testfixtures import TempDirectory
 from src.model.Vehicle import Vehicle
 from src.model.Request import Request
-from src.instance.Instance import InstanceConfig
+from src.data.instance import InstanceConfig
 import os
 
 

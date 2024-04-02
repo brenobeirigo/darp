@@ -1,0 +1,206 @@
+## Step 1: Environment Setup
+
+To ensure smooth operation within a Jupyter Notebook, we first set up our environment:
+
+```{python}
+import sys
+sys.path.append("../")  # Adding parent directory to the paths
+
+# IPython magic commands for auto-reloading modules
+%load_ext autoreload
+%autoreload 2
+```
+
+## Step 2: Parse instance
+
+```{python}
+import src.data.parser as parser
+from pathlib import Path
+
+folder_path = Path("../data/raw/mdvrppdtw/")
+
+instances_files = [
+    "vrppd_13-3-5.txt",
+    "vrppd_23-3-10.txt",
+    "vrppd_33-3-15.txt",
+]
+
+instances = {}
+for instance_file in instances_files:
+    instance_filepath = folder_path / instance_file
+    print(f"## Processing instance at '{instance_filepath}'...")
+
+    # Create an Instance object
+    instance_obj = parser.parse_instance_from_filepath(
+        instance_filepath,
+        instance_parser=parser.PARSER_TYPE_MVRPPDTW
+    )
+    print(instance_obj)
+    instances[instance_file[:-4]] = instance_obj
+
+```
+
+DataFrame view of the instance:
+
+```{python}
+
+# Displaying the instance data as a DataFrame for verification
+df_instance = instances["vrppd_13-3-5"].nodeset_df
+df_instance
+```
+
+Node distribution of instances:
+
+```{python}
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Create subplots for each instance
+fig, axs = plt.subplots(
+    1,
+    len(instances),
+    figsize=(5 * len(instances), 5))
+
+# Iterate over instances and plot scatter plots
+for i, (instance_file, instance_obj) in enumerate(instances.items()):
+    ax = axs[i]
+    subfig_title = f"{instance_file}\n({instance_obj.config.label})"
+    ax.set_title(subfig_title)
+    sns.scatterplot(
+        data=instance_obj.nodeset_df,
+        x="x",
+        y="y",
+        hue="node_type",
+        ax=ax)
+```
+
+### Importing Modules
+
+Now, let's import the required functions and classes from our `src` package:
+
+```{python}
+from time import time
+import matplotlib.pyplot as plt
+from pprint import pprint
+
+# Parser to load and parse DARP instance data
+from src.data.parser import parse_instance_from_filepath
+
+# Darp class for building and solving the DARP model
+from src.solver.darp import Darp
+
+# Function for plotting vehicle routes
+from src.visualization.route import plot_vehicle_route
+```
+
+```{python}
+
+import src.solver.darp as darp
+# Initializing the DARP model
+t_start = time()
+instance_obj = instances["vrppd_13-3-5"] 
+# instance_obj = instances["vrppd_33-3-15"]
+# instance_obj = instances["vrppd_23-3-10"]
+print(instance_obj)
+model = Darp(instance_obj)
+print("Time to initialize the model:", time() - t_start)
+
+# Building the model with constraints, variables, and objective function
+t_start = time()
+model.build()
+model.set_obj(darp.OBJ_MIN_COST)
+
+print("Time to build the model:", time() - t_start)
+
+# Solving the model to minimize costs
+t_start = time()
+solution_obj = model.solve()
+print("Time to solve the model:", time() - t_start)
+
+# Detailed solver-specific information
+pprint(solution_obj.solver_stats)
+
+df = solution_obj.route_df(fn_dist=model.dist)
+
+df
+```
+
+Summary statistics:
+
+```{python}
+import pandas as pd
+pd.concat([solution_obj.to_df(), solution_obj.to_df(), pd.DataFrame()])
+```
+
+```{python}
+
+
+# import logging
+# logging.basicConfig(level=logging.DEBUG)
+
+# Creating a 2x2 grid for plotting routes
+fig, axs = plt.subplots(1, instance_obj.config.n_vehicles, figsize=(5, 5))
+
+
+# Iterating through vehicle routes for visualization
+for vehicle_id, vehicle_sol in solution_obj.vehicle_routes.items():
+    df_vehicle_solution = df[df["vehicle_id"] == vehicle_id].copy()
+    print(df_vehicle_solution)
+    title_plot = f"Route vehicle {vehicle_id} ({vehicle_sol.summary()})"
+    plot_vehicle_route(axs, df_vehicle_solution, title=title_plot, coord_box=[0, 100, 0, 100])
+
+plt.tight_layout()
+```
+
+```{python}
+import src.solver.darp as darp
+import pandas as pd
+df_results = pd.DataFrame()
+dict_results = {}
+for instance_label, instance_obj in instances.items():
+    for is_flex_depot in [True, False]:
+        for obj in [darp.OBJ_MIN_COST, darp.OBJ_MAX_PROFIT, darp.OBJ_MIN_TOTAL_LATENCY, darp.OBJ_MIN_FINAL_MAKESPAN]:
+            test_label = f"{instance_label}_flex={is_flex_depot}_obj={obj}"
+            print(test_label)
+            print(instance_obj)
+
+            
+            config = {
+                "instance_label": instance_label,
+                "is_flex_depot": is_flex_depot,
+                "obj": obj
+            }
+
+            df = pd.DataFrame([config])
+          
+            
+            model = Darp(instance_obj)
+
+            model.build()
+            model.set_flex_depot(is_flex_depot)
+            model.set_obj(obj)
+
+            solution_obj = model.solve()
+            
+            if solution_obj:
+                df_test = pd.concat([df, solution_obj.to_df()], axis=1)
+                dict_results[(instance_label, is_flex_depot, obj)] = solution_obj
+                pprint(solution_obj.solver_stats)
+
+                df_routes = solution_obj.route_df(fn_dist=model.dist)
+                df_results = pd.concat([df_results, df_test])
+                print(df_routes)
+                df_routes.to_csv(f"../reports/tables/{test_label}.csv")
+            else:
+
+                dict_results[(instance_label, is_flex_depot, obj)] = "Infeasible"
+                df_results = pd.concat([df_results, df])
+                print("Infeasible!")
+
+df_results.to_csv(f"../reports/tables/results.csv")
+    
+```
+
+```{python}
+df_results
+```

@@ -59,6 +59,9 @@ class SolutionVehicle:
     T: float
     T_avg: float  # Avg. transit time
     route: list[SolutionNode]
+    
+    def node_route(self):
+        return tuple([n.id for n in self.route])
 
     def summary(self):
         return f"cost={self.D:6.2f}"
@@ -92,7 +95,6 @@ class SolutionVehicle:
             (o.id, d.id) for o, d in zip(self.route[:-1], self.route[1:])
         ]
         cost = sum([dist_matrix[o][d] for o, d in od_pos_pairs])
-        print("cost_r:", cost)
         # assert round(cost, 2) == round(self.T, 2)
         return cost
 
@@ -244,6 +246,7 @@ class SolutionSolver:
     solver_numvars: int
     solver_numiterations: int
     solver_numnodes: int
+    solver_gap: float
 
 
 @dataclass
@@ -259,10 +262,56 @@ class Solution:
     summary: SolutionSummary
     solver_stats: SolutionSolver
     vehicle_routes: dict[SolutionVehicle]
+    
+    def to_df(self):
+        # Instance information
+        config_info = {
+            'Number of Vehicles': self.instance.config.n_vehicles,
+            'Number of Customers': self.instance.config.n_customers,
+            'Time Horizon (min)': self.instance.config.time_horizon_min,
+            'Vehicle Capacity': self.instance.config.vehicle_capacity,
+            'Maximum Ride Time (min)': self.instance.config.maximum_ride_time_min,
+            'Number of Depots': self.instance.config.n_depots,
+        }
+        config_df = pd.DataFrame([config_info])
+        
+        summary_df = pd.DataFrame([{
+            'Cost': self.summary.cost,
+            'Total Duration': self.summary.total_duration,
+            'Total Waiting': self.summary.total_waiting,
+            'Average Waiting': self.summary.avg_waiting,
+            'Total Transit': self.summary.total_transit,
+            'Average Transit': self.summary.avg_transit
+        }])
+        
+        # Create a DataFrame for the Solver Statistics
+        solver_df = pd.DataFrame([{
+            'Objective Value': self.solver_stats.sol_objvalue,
+            'CPU Time': self.solver_stats.sol_cputime,
+            'Number of Edges': self.solver_stats.graph_numedges,
+            'Number of Nodes': self.solver_stats.graph_numnodes,
+            'Number of Constraints': self.solver_stats.solver_numconstrs,
+            'Number of Variables': self.solver_stats.solver_numvars,
+            'Number of Iterations': self.solver_stats.solver_numiterations,
+            'Number of Solver Nodes': self.solver_stats.solver_numnodes,
+            'Solver Gap': self.solver_stats.solver_gap
+        }])
+        
+        # Combine all DataFrames into one, with a hierarchical column structure
+        combined_df = pd.concat([
+           config_df,
+            summary_df,
+            solver_df,
+        ], axis=1)
+        
+        return combined_df
 
     def __repr__(self):
         return repr(self.summary)
-
+    
+    def routes_dict(self):
+        return { k:k_route.node_route() for k, k_route in self.vehicle_routes.items()}
+    
     def route_df(self, fn_dist: callable):
         # Create initial DataFrame
         df = pd.DataFrame(

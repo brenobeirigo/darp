@@ -283,7 +283,6 @@ Excerpt of instance `pr02` solution:
     total waiting time: 725.982 average: 7.56231
     total transit time: 1965.46 average: 40.9472
 
-
 Excerpt of instance solution `pr01.res`:
 
     190.02
