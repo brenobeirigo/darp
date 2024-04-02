@@ -165,11 +165,16 @@ class Darp:
         # 50km = 60 min
         # dist = x
 
+    def set_time_limit_min(self, limit_in_min):
+        self.solver.set_time_limit(limit_in_min*60*1000)
+        return self
+    
     def init_solver(self):
         # Create the mip solver with the SCIP backend
-        self.solver = pywraplp.Solver.CreateSolver("SCIP")
-        self.solver.set_time_limit(10*60*1000)
+        # self.solver = pywraplp.Solver.CreateSolver("SCIP")
+        self.solver = pywraplp.Solver.CreateSolver('GUROBI')
         self.solver.EnableOutput()
+        self.set_time_limit_min(10)
         self.solution_ = None
 
     def __str__(self):
@@ -284,7 +289,7 @@ class Darp:
             self.var_Q[k] = {}
             for i in self.N:
                 label_var_Q = f"Q[{k},{i}]"
-                self.var_Q[k][i] = self.solver.IntVar(
+                self.var_Q[k][i] = self.solver.NumVar(
                     0, self.Q[k], label_var_Q
                 )
 
