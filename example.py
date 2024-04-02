@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     # Solving the model to minimize costs
     t_start = time()
-    model.set_obj(darp.OBJ_MIN_COST)
+    model.set_obj(darp.OBJ_MIN_TRAVEL_DISTANCE)
     solution_obj = model.solve()
     print("Time to solve the model:", time() - t_start)
 

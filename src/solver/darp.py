@@ -7,9 +7,9 @@ import pathlib
 
 logger = logging.getLogger("__main__" + "." + __name__)
 
-OBJ_MIN_COST = "obj_cost"
+OBJ_MIN_TRAVEL_DISTANCE = "obj_cost"
 OBJ_MAX_PROFIT = "obj_profit"
-OBJ_MIN_EMISSIONS = "obj_emissions"
+OBJ_MIN_TRAVEL_COST = "obj_emissions"
 OBJ_MIN_TOTAL_LATENCY = "obj_latency"
 OBJ_MIN_FINAL_MAKESPAN = "obj_makespan"
 CONSTR_FLEXIBLE_DEPOT = "constr_flexible_depot"
@@ -186,12 +186,12 @@ class Darp:
         return f"{type(self).__name__}({input_data_str})"
 
     def set_obj(self, obj):
-        if obj == OBJ_MIN_COST:
+        if obj == OBJ_MIN_TRAVEL_DISTANCE:
             self.set_objfunc_min_distance_traveled()
         elif obj == OBJ_MAX_PROFIT:
             self.set_objfunc_max_profit()
-        elif obj == OBJ_MIN_EMISSIONS:
-            self.set_objfunc_min_emissions()
+        elif obj == OBJ_MIN_TRAVEL_COST:
+            self.set_objfunc_min_travel_cost()
         elif obj == OBJ_MIN_TOTAL_LATENCY:
             self.set_objfunc_min_total_latency()
         elif obj == OBJ_MIN_FINAL_MAKESPAN:
@@ -364,14 +364,18 @@ class Darp:
         logger.debug("objective_function_min_distance_traveled")
         
 
-    def set_objfunc_min_emissions(self):
+    def set_objfunc_min_travel_cost(self):
 
+        obj_exp = []
         for k in self.K:
             for i, j in self.A:
                 total_travel_cost_per_km = (
                     self.K_params[k]["cost_per_km"]
                     * self.dist(i, j)
                     * self.var_x[k][i][j])
+                
+                obj_exp.append(total_travel_cost_per_km)
+                
                 logger.debug(
                     f"obj_{k}_travels_{i}-{j}_"
                     f"cost_per_km={self.K_params[k]['cost_per_km']:06.2f}_times_"
@@ -379,9 +383,9 @@ class Darp:
                     f"{self.dist(i, j) * self.K_params[k]['cost_per_km']:06.2f}"
                 )
 
-        self.solver.setObjective(total_travel_cost_per_km, GRB.MINIMIZE)
+        self.solver.setObjective(quicksum(obj_exp), GRB.MINIMIZE)
 
-        logger.debug("objective_function_min_distance_traveled")
+        logger.debug("objective_function_min_cost_per_km")
     
     def set_objfunc_max_profit(self):
 

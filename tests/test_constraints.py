@@ -11,10 +11,12 @@ import src.solver.darp as darp
     'one_depot_one_customer_one_vehicle, obj, expected_sol_route, expected_sol_obj',
     [
         ({"speed": 60, "capacity": 10}, darp.OBJ_MAX_PROFIT, None, None), # Fails capacity
-        ({"speed": 5, "capacity": 20}, darp.OBJ_MIN_COST, None, None), # Fails speed
-        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_COST, set([(1, 2, 3, 4)]), 40),
+        ({"speed": 5, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, None, None), # Fails speed
+        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(1, 2, 3, 4)]), 40),
         ({"speed": 60, "capacity": 20}, darp.OBJ_MAX_PROFIT, set([(1, 2, 3, 4)]),
          (50 * 20 - 0.05 * 0.2 * (10 + 10 + 20) - 20 / 60 * (320 - 190))),
+        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_COST, set([(1, 2, 3, 4)]),
+         (0.05 * 0.2 * (10 + 10 + 20))),
     ],
     indirect=["one_depot_one_customer_one_vehicle"]
 )
@@ -45,8 +47,8 @@ def test_pudo_order(one_depot_one_customer_one_vehicle, obj, expected_sol_route,
     'two_depots_one_customer_one_vehicle, obj, expected_sol_route, expected_sol_obj',
     [
         ({"speed": 60, "capacity": 10}, darp.OBJ_MAX_PROFIT, None, None), # Fails capacity
-        ({"speed": 5, "capacity": 20}, darp.OBJ_MIN_COST, None, None), # Fails speed
-        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_COST, set([(1, 3, 4, 5)]), 40),
+        ({"speed": 5, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, None, None), # Fails speed
+        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(1, 3, 4, 5)]), 40),
         ({"speed": 60, "capacity": 20}, darp.OBJ_MAX_PROFIT, set([(1, 3, 4, 5)]),
          (50 * 20 - 0.05 * 0.2 * (10 + 10 + 20) - 20 / 60 * (320 - 190))),
     ],
@@ -79,8 +81,8 @@ def test_if_flexible_depot_then_vehicle_departs_and_returns_from_closest(two_dep
     'two_diff_depots_one_customer_one_vehicle, obj, expected_sol_route, expected_sol_obj',
     [
         ({"speed": 60, "capacity": 10}, darp.OBJ_MAX_PROFIT, None, None), # Fails capacity
-        ({"speed": 1, "capacity": 20}, darp.OBJ_MIN_COST, None, None), # Fails speed
-        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_COST, set([(1, 3, 4, 6)]), 30),
+        ({"speed": 1, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, None, None), # Fails speed
+        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(1, 3, 4, 6)]), 30),
         ({"speed": 60, "capacity": 20}, darp.OBJ_MAX_PROFIT, set([(1, 3, 4, 6)]),
          (50 * 20 - 0.05 * 0.2 * (10 + 10 + 10) - 20 / 60 * (310 - 190))),
     ],
@@ -116,9 +118,9 @@ def test_if_flexible_depot_then_vehicle_starts_and_ends_at_different_depots(two_
     'two_diff_depots_two_customers_one_vehicle, obj, expected_sol_route, expected_sol_obj',
     [
         ({"speed": 60, "capacity": 10}, darp.OBJ_MAX_PROFIT, None, None), # Fails capacity
-        ({"speed": 1, "capacity": 40}, darp.OBJ_MIN_COST, None, None), # Fails speed
-        ({"speed": 60, "capacity": 40}, darp.OBJ_MIN_COST, set([(1, 3, 4, 5, 6, 8)]), 30),
-        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_COST, set([(1, 3, 5, 4, 6, 8)]), 40),
+        ({"speed": 1, "capacity": 40}, darp.OBJ_MIN_TRAVEL_DISTANCE, None, None), # Fails speed
+        ({"speed": 60, "capacity": 40}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(1, 3, 4, 5, 6, 8)]), 30),
+        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(1, 3, 5, 4, 6, 8)]), 40),
         ({"speed": 60, "capacity": 40}, darp.OBJ_MAX_PROFIT, set([(1, 3, 4, 5, 6, 8)]),
          (50 * 20 * 2 - 0.05 * 0.2 * (10 + 10 + 10) - 20 / 60 * (500 - 470))),
     ],
@@ -161,9 +163,9 @@ def test_picks_2_delivers_2_unrestricted_tws(two_diff_depots_two_customers_one_v
     'two_diff_depots_two_customers_one_vehicle, obj, expected_sol_route, expected_sol_obj',
     [
         ({"speed": 60, "capacity": 10}, darp.OBJ_MAX_PROFIT, None, None), # Fails capacity
-        ({"speed": 1, "capacity": 40}, darp.OBJ_MIN_COST, None, None), # Fails speed
-        ({"speed": 60, "capacity": 40}, darp.OBJ_MIN_COST, set([(2, 4, 3, 5, 6, 8)]), 40),
-        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_COST, set([(2, 3, 5, 4, 6, 8)]), 50),
+        ({"speed": 1, "capacity": 40}, darp.OBJ_MIN_TRAVEL_DISTANCE, None, None), # Fails speed
+        ({"speed": 60, "capacity": 40}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(2, 4, 3, 5, 6, 8)]), 40),
+        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(2, 3, 5, 4, 6, 8)]), 50),
         ({"speed": 60, "capacity": 40}, darp.OBJ_MAX_PROFIT, set([(2, 4, 3, 5, 6, 8)]),
          (50 * 20 * 2 - 0.05 * 0.2 * (15 + 5 + 10 + 5 + 5) - 20 / 60 * (500 - 460))),
     ],

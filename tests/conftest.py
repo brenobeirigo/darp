@@ -45,11 +45,11 @@ def obj_config(request) -> dict[str, str]:
     objective_type = request.param
     match objective_type:
         case "min_dist_traveled":
-            return {"obj": darp.OBJ_MIN_COST}
+            return {"obj": darp.OBJ_MIN_TRAVEL_DISTANCE}
         case "max_profit":
             return {"obj": darp.OBJ_MAX_PROFIT}
         case _:
-            return {"obj": darp.OBJ_MIN_COST}
+            return {"obj": darp.OBJ_MIN_TRAVEL_DISTANCE}
 
 @pytest.fixture
 def depot_config(request) -> dict[str, str]:

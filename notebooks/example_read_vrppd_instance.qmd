@@ -173,9 +173,9 @@ dict_results = {}
 for instance_label, instance_obj in instances.items():
     for is_flex_depot in [True, False]:
         for obj in [
-            darp.OBJ_MIN_COST,
+            darp.OBJ_MIN_TRAVEL_DISTANCE,
             darp.OBJ_MAX_PROFIT,
-            darp.OBJ_MIN_EMISSIONS,
+            darp.OBJ_MIN_TRAVEL_COST,
             darp.OBJ_MIN_TOTAL_LATENCY,
             darp.OBJ_MIN_FINAL_MAKESPAN]:
 
@@ -185,10 +185,10 @@ for instance_label, instance_obj in instances.items():
             print(f"Instance:")
             pprint(instance_obj)
 
-            query = df.loc[
-                (df["instance_label"] == instance_label)
-                & (df["is_flex_depot"] == is_flex_depot)
-                & (df["obj"] == obj)]
+            query = df_results.loc[
+                (df_results["instance_label"] == instance_label)
+                & (df_results["is_flex_depot"] == is_flex_depot)
+                & (df_results["obj"] == obj)]
             
             # Check if test was feasible
             if len(query)>0 and not np.isnan(query["Objective Value"].values[0]):
@@ -214,6 +214,8 @@ for instance_label, instance_obj in instances.items():
             # Configure logs
             model.save_lp(f"../reports/lps/{test_label}.lp")
             model.save_log(f"../reports/logs/{test_label}.log")
+
+            model.set_time_limit_min(20)
 
             # Run solver
             solution_obj = model.solve()
