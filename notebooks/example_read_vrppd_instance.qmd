@@ -98,9 +98,9 @@ from src.visualization.route import plot_vehicle_route
 import src.solver.darp as darp
 # Initializing the DARP model
 t_start = time()
-instance_obj = instances["vrppd_13-3-5"] 
+# instance_obj = instances["vrppd_13-3-5"] 
+instance_obj = instances["vrppd_23-3-10"]
 # instance_obj = instances["vrppd_33-3-15"]
-# instance_obj = instances["vrppd_23-3-10"]
 print(instance_obj)
 model = Darp(instance_obj)
 print("Time to initialize the model:", time() - t_start)
@@ -108,6 +108,7 @@ print("Time to initialize the model:", time() - t_start)
 # Building the model with constraints, variables, and objective function
 t_start = time()
 model.build()
+model.set_time_limit_min(5)
 model.set_obj(darp.OBJ_MIN_COST)
 
 print("Time to build the model:", time() - t_start)
@@ -155,52 +156,107 @@ plt.tight_layout()
 ```{python}
 import src.solver.darp as darp
 import pandas as pd
-df_results = pd.DataFrame()
+import os
+from pprint import pprint
+import numpy as np
+
+# Aggregated results
+results_filepath = "../reports/tables/results.csv"
+
+if os.path.exists(results_filepath):
+    df_results = pd.read_csv(results_filepath)
+else:
+    df_results = pd.DataFrame()
+
+
 dict_results = {}
 for instance_label, instance_obj in instances.items():
     for is_flex_depot in [True, False]:
-        for obj in [darp.OBJ_MIN_COST, darp.OBJ_MAX_PROFIT, darp.OBJ_MIN_TOTAL_LATENCY, darp.OBJ_MIN_FINAL_MAKESPAN]:
-            test_label = f"{instance_label}_flex={is_flex_depot}_obj={obj}"
-            print(test_label)
-            print(instance_obj)
+        for obj in [
+            darp.OBJ_MIN_COST,
+            darp.OBJ_MAX_PROFIT,
+            darp.OBJ_MIN_EMISSIONS,
+            darp.OBJ_MIN_TOTAL_LATENCY,
+            darp.OBJ_MIN_FINAL_MAKESPAN]:
 
             
+            test_label = f"{instance_label}_flex={is_flex_depot}_obj={obj}"
+            print(f"Running test: {test_label}")
+            print(f"Instance:")
+            pprint(instance_obj)
+
+            query = df.loc[
+                (df["instance_label"] == instance_label)
+                & (df["is_flex_depot"] == is_flex_depot)
+                & (df["obj"] == obj)]
+            
+            # Check if test was feasible
+            if len(query)>0 and not np.isnan(query["Objective Value"].values[0]):
+                print("Test already executed!")
+                continue
+
             config = {
                 "instance_label": instance_label,
                 "is_flex_depot": is_flex_depot,
                 "obj": obj
             }
 
-            df = pd.DataFrame([config])
-          
+            df_config = pd.DataFrame([config])
             
+            ## Build model
             model = Darp(instance_obj)
-
             model.build()
+
+            # Configure model
             model.set_flex_depot(is_flex_depot)
             model.set_obj(obj)
 
+            # Configure logs
+            model.save_lp(f"../reports/lps/{test_label}.lp")
+            model.save_log(f"../reports/logs/{test_label}.log")
+
+            # Run solver
             solution_obj = model.solve()
             
             if solution_obj:
-                df_test = pd.concat([df, solution_obj.to_df()], axis=1)
+
+                # Save solution object
                 dict_results[(instance_label, is_flex_depot, obj)] = solution_obj
+
+                # Print solver statistics
                 pprint(solution_obj.solver_stats)
 
+                # Save route
                 df_routes = solution_obj.route_df(fn_dist=model.dist)
-                df_results = pd.concat([df_results, df_test])
-                print(df_routes)
                 df_routes.to_csv(f"../reports/tables/{test_label}.csv")
+                print(df_routes)
+
+                # Add results
+                df_test = pd.concat([df_config, solution_obj.to_df()], axis=1)
+                df_results = pd.concat([df_results, df_test])
+
+                # Save summary statistics
+                df_results.to_csv(results_filepath)
+                
             else:
 
                 dict_results[(instance_label, is_flex_depot, obj)] = "Infeasible"
-                df_results = pd.concat([df_results, df])
+                df_results = pd.concat([df_results, df_config])
                 print("Infeasible!")
 
-df_results.to_csv(f"../reports/tables/results.csv")
     
 ```
 
 ```{python}
-df_results
+import pandas as pd
+import numpy as np
+df = pd.read_csv("../reports/tables/results_bk.csv")
+
+value = df.loc[(df["instance_label"] == "vrppd_33-3-15") & (df["is_flex_depot"] == False) & (df["obj"] == "obj_profit")]["Objective Value"].values[0]
+np.isnan(value)
+
+```
+
+```{python}
+len(df.loc[(df["instance_label"] == "vrppd_35-3-15") & (df["is_flex_depot"] == False) & (df["obj"] == "obj_profit")]["Objective Value"])
 ```

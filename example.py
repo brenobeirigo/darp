@@ -1,5 +1,6 @@
 from src.data import parser
 from pathlib import Path
+import src.solver.darp as darp
 
 # import logging
 
@@ -33,9 +34,9 @@ if __name__ == "__main__":
         print(instance_obj)
         instances[instance_file[:-4]] = instance_obj
 
-    # Displaying the instance data as a DataFrame for verification
-    df_instance = instances["vrppd_13-3-5"].nodeset_df
-    df_instance
+    # # Displaying the instance data as a DataFrame for verification
+    # df_instance = instances["vrppd_13-3-5"].nodeset_df
+    # df_instance
 
     import seaborn as sns
     import matplotlib.pyplot as plt
@@ -75,22 +76,33 @@ if __name__ == "__main__":
 
     # Initializing the DARP model
     t_start = time()
-    instance_obj = instances["vrppd_13-3-5"] 
+    # instance_obj = instances["vrppd_13-3-5"] 
+    instance_obj = instances["vrppd_23-3-10"] 
+    # instance_obj = instances["vrppd_33-3-15"] 
     model = Darp(instance_obj)
     print("Time to initialize the model:", time() - t_start)
 
     # Building the model with constraints, variables, and objective function
     t_start = time()
     model.build()
+    model.save_lp("./reports/lps/model_example.lp")
+    model.save_log("./reports/logs/model_example.log")
+    model.set_time_limit_min(0.05)
     print("Time to build the model:", time() - t_start)
 
     # Solving the model to minimize costs
     t_start = time()
+    model.set_obj(darp.OBJ_MIN_COST)
     solution_obj = model.solve()
     print("Time to solve the model:", time() - t_start)
 
+    
+    pprint(solution_obj)
+    
     # Detailed solver-specific information
     pprint(solution_obj.solver_stats)
+    
+    # Detailed solver-specific information
 
     df = solution_obj.route_df(fn_dist=model.dist)
 
