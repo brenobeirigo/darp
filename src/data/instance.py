@@ -9,9 +9,10 @@ from dataclasses import dataclass
 class InstanceConfig:
     n_vehicles: int
     n_customers: int
-    time_horizon_min: int
     vehicle_capacity: int
-    maximum_ride_time_min: int
+    maximum_driving_time_min: int = None
+    time_horizon_min: int = None
+    maximum_ride_time_min: int = None
     n_depots: int = 1
 
     @property

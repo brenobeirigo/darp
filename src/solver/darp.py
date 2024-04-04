@@ -206,17 +206,22 @@ class Darp:
             self.constr_vehicle_start_and_end_terminal_are_equal()
         return self
         
-    def build(self):
+    def build(self, allow_rejection=False, max_driving_time_h=None):
         self.declare_variables()
-        self.set_constraints()
+        self.set_constraints(allow_rejection=allow_rejection, max_driving_time_h=max_driving_time_h)
 
     def build_solve(self):
         self.build()
         return self.solve()
 
-    def set_constraints(self):
+    def set_constraints(self, allow_rejection=False, max_driving_time_h=None):
         # Routing constraints
-        self.constr_every_request_is_served_exactly_once()
+        
+        if allow_rejection:
+            self.constr_every_request_is_served_exactly_once_or_rejected()
+        else:
+            self.constr_every_request_is_served_exactly_once()
+        
         self.constr_same_vehicle_services_pickup_and_delivery()
         self.constr_the_same_vehicle_that_enters_a_node_leaves_the_node()
         self.constr_every_vehicle_leaves_the_start_terminal()
@@ -227,13 +232,16 @@ class Darp:
         self.constr_visit_times_within_requests_tw()
         self.constr_ride_times_are_lower_than_request_thresholds()
         self.constr_ensure_feasible_ride_times()
+        self.constr_driving_time_between_depots()
+        if max_driving_time_h:
+            self.constr_max_driving_time(max_driving_time_h)
 
         # Load constraints
         self.constr_ensure_feasible_vehicle_loads()
         self.constr_vehicle_loads_are_lower_than_vehicles_max_capacities()
         self.constr_vehicle_starts_empty()
         self.constr_vehicle_ends_empty()
-        # self.constr_vehicle_only_visits_valid_nodes()
+        self.constr_vehicle_only_visits_valid_nodes()
         
         self.constr_makespan()
 
@@ -259,11 +267,14 @@ class Darp:
         # The ride time of request i on vehicle k
         self.var_L = {}
         
+        self.var_driving_time = {}
+        
 
         self.declare_decision_vars()
         self.declare_arrival_vars()
         self.declare_load_vars()
         self.declare_ridetime_vars()
+        self.declare_driving_time_vars()
         
         # The max arrival time at the depot across the fleet
         self.var_makespan = self.solver.addVar(0, self.total_horizon, vtype=GRB.CONTINUOUS, name="var_makespan")
@@ -302,8 +313,16 @@ class Darp:
             self.var_L[k] = {}
             for i in self.P:
                 label_var_L = f"L[{k},{i}]"
+                # Max ride time if present (i.e., not None)
+                max_ride_time = self.L[i] if self.L[i] is not None else float('inf')
                 self.var_L[k][i] = self.solver.addVar(
-                    lb=0, ub=self.L[i], vtype=GRB.CONTINUOUS, name=label_var_L
+                    lb=0, ub=max_ride_time, vtype=GRB.CONTINUOUS, name=label_var_L
+                )
+    
+    def declare_driving_time_vars(self):
+        for k in self.K:
+            self.var_driving_time[k] = self.solver.addVar(
+                    lb=0, ub=self.total_horizon, vtype=GRB.CONTINUOUS, name=f"driving_t_{k}"
                 )
 
     ####################################################################
@@ -391,8 +410,7 @@ class Darp:
 
         obj_expr = []
         for k in self.K:
-            driving_time = sum(self.var_B[k][d] for d in self.destination_depot) - sum(self.var_B[k][o] for o in self.origin_depot)
-            total_cost_per_min = (self.K_params[k]["cost_per_min"] * driving_time)
+            total_cost_per_min = (self.K_params[k]["cost_per_min"] * self.var_driving_time[k])
             logger.debug(f"obj_driving_{k}_cost_per_min={self.K_params[k]['cost_per_min']:06.2f}")
             obj_expr.append(-total_cost_per_min)
 
@@ -434,6 +452,28 @@ class Darp:
     ####################################################################
     ####################################################################
 
+    def constr_driving_time_between_depots(self):
+        
+        for k in self.K:
+            constr_label = f"driving_time_between_depots_vehicle_{k}"
+            self.solver.addConstr(
+                self.var_driving_time[k]  == sum(self.var_B[k][d] for d in self.destination_depot) - sum(self.var_B[k][o] for o in self.origin_depot),
+                name=constr_label
+            )
+            
+            logger.debug(constr_label)
+            
+    def constr_max_driving_time(self, max_driving_time_h):
+        
+        for k in self.K:
+            constr_label = f"max_driving_time_vehicle_{k}"
+            self.solver.addConstr(
+                self.var_driving_time[k] <= max_driving_time_h,
+                name=constr_label
+            )
+            
+            logger.debug(constr_label)
+    
     def constr_makespan(self):
         for k in self.K:
             for d in self.destination_depot:
@@ -454,6 +494,22 @@ class Darp:
                 for j in self.N_outbound[i]
             )
             == 1,
+            name=constr_label,
+            )
+
+            logger.debug(constr_label)
+    
+    def constr_every_request_is_served_exactly_once_or_rejected(self):
+        for i in self.P:
+            constr_label = f"request_{i}_is_served_exactly_once"
+
+            self.solver.addConstr(
+            quicksum(
+                self.var_x[k][i][j]
+                for k in self.K
+                for j in self.N_outbound[i]
+            )
+            <= 1,
             name=constr_label,
             )
 
@@ -708,16 +764,21 @@ class Darp:
                 )
 
                 logger.debug(constr_label_lower)
+                
+                
+                # Create ride time constraints if maximum
+                # ride time is setup (i.e., not None)
+                if self.L[i] is not None:
 
-                constr_label_upper = (
-                    f"{i}_travels_at_most_{self.L[i]}_" f"inside_vehicle_{k}"
-                )
+                    constr_label_upper = (
+                        f"{i}_travels_at_most_{self.L[i]}_" f"inside_vehicle_{k}"
+                    )
 
-                self.solver.addConstr(
-                    self.var_L[k][i] <= self.L[i], name=constr_label_upper
-                )
+                    self.solver.addConstr(
+                        self.var_L[k][i] <= self.L[i], name=constr_label_upper
+                    )
 
-                logger.debug(constr_label_upper)
+                    logger.debug(constr_label_upper)
 
     def constr_vehicle_starts_empty(self):
         for k in self.K:
@@ -867,6 +928,10 @@ class Darp:
     def var_B_sol(self, k, i):
         # Accessing the solution value of variable B for vehicle k at node i
         return self.var_B[k][i].X
+    
+    def var_driving_time_sol(self, k):
+        # Accessing the solution value of variable driving_time of vehicle k
+        return self.var_driving_time[k].X
 
     def var_L_sol(self, k, i):
         # Accessing the solution value of variable L for vehicle k at pickup node i
@@ -1064,6 +1129,8 @@ class Darp:
     def solve(self) -> Solution:
         
         self.solver.optimize()
+        
+        print("STATUS: ", self.solver.Status, self.instance.config.label)
 
         if self.solver.Status == GRB.Status.OPTIMAL or (GRB.Status.TIME_LIMIT and self.solver.SolCount > 0):
             self.solution_ = self.get_solution()
@@ -1079,6 +1146,14 @@ class Darp:
             dict_vehicle_routes = self.get_dict_route_vehicle(flow_edges)
             logger.debug(dict_vehicle_routes)
 
+
+            logger.debug("# Driving times:")
+            for k in self.K:
+                logger.debug(
+                    f"{self.var_driving_time[k].VarName:>20} = "
+                    f"{self.var_driving_time[k].X:>7.2f}"
+                )
+            
             logger.debug("# Arrivals")
             for k in self.K:
                 for i in self.N:

@@ -95,62 +95,109 @@ from src.visualization.route import plot_vehicle_route
 
 ```{python}
 
-import src.solver.darp as darp
-# Initializing the DARP model
-t_start = time()
-# instance_obj = instances["vrppd_13-3-5"] 
-instance_obj = instances["vrppd_23-3-10"]
-# instance_obj = instances["vrppd_33-3-15"]
-print(instance_obj)
-model = Darp(instance_obj)
-print("Time to initialize the model:", time() - t_start)
+# import src.solver.darp as darp
+# # Initializing the DARP model
+# t_start = time()
+# # instance_obj = instances["vrppd_13-3-5"] 
+# instance_obj = instances["vrppd_23-3-10"]
+# # instance_obj = instances["vrppd_33-3-15"]
+# print(instance_obj)
+# model = Darp(instance_obj)
+# print("Time to initialize the model:", time() - t_start)
 
-# Building the model with constraints, variables, and objective function
-t_start = time()
-model.build()
-model.set_time_limit_min(5)
-model.set_obj(darp.OBJ_MIN_COST)
+# # Building the model with constraints, variables, and objective function
+# t_start = time()
+# model.build()
+# model.set_time_limit_min(5)
+# model.set_obj(darp.OBJ_MIN_TRAVEL_DISTANCE)
 
-print("Time to build the model:", time() - t_start)
+# print("Time to build the model:", time() - t_start)
 
-# Solving the model to minimize costs
-t_start = time()
-solution_obj = model.solve()
-print("Time to solve the model:", time() - t_start)
+# # Solving the model to minimize costs
+# t_start = time()
+# solution_obj = model.solve()
+# print("Time to solve the model:", time() - t_start)
 
-# Detailed solver-specific information
-pprint(solution_obj.solver_stats)
+# # Detailed solver-specific information
+# pprint(solution_obj.solver_stats)
 
-df = solution_obj.route_df(fn_dist=model.dist)
+# df = solution_obj.route_df(fn_dist=model.dist)
 
-df
+# df
 ```
 
 Summary statistics:
 
 ```{python}
-import pandas as pd
-pd.concat([solution_obj.to_df(), solution_obj.to_df(), pd.DataFrame()])
+# import pandas as pd
+# pd.concat([solution_obj.to_df(), solution_obj.to_df(), pd.DataFrame()])
 ```
 
 ```{python}
 
 
-# import logging
-# logging.basicConfig(level=logging.DEBUG)
 
+
+
+```
+
+```{python}
 # Creating a 2x2 grid for plotting routes
-fig, axs = plt.subplots(1, instance_obj.config.n_vehicles, figsize=(5, 5))
+# fig, axs = plt.subplots(1, instance_obj.config.n_vehicles, figsize=(5, 5))
 
 
-# Iterating through vehicle routes for visualization
-for vehicle_id, vehicle_sol in solution_obj.vehicle_routes.items():
-    df_vehicle_solution = df[df["vehicle_id"] == vehicle_id].copy()
-    print(df_vehicle_solution)
-    title_plot = f"Route vehicle {vehicle_id} ({vehicle_sol.summary()})"
-    plot_vehicle_route(axs, df_vehicle_solution, title=title_plot, coord_box=[0, 100, 0, 100])
+# # Iterating through vehicle routes for visualization
+# for vehicle_id, vehicle_sol in solution_obj.vehicle_routes.items():
+#     df_vehicle_solution = df[df["vehicle_id"] == vehicle_id].copy()
+#     print(df_vehicle_solution)
+#     title_plot = f"Route vehicle {vehicle_id} ({vehicle_sol.summary()})"
+#     plot_vehicle_route(axs, df_vehicle_solution, title=title_plot, coord_box=[0, 100, 0, 100])
 
-plt.tight_layout()
+# plt.tight_layout()
+```
+
+Test utils:
+
+```{python}
+def generate_scenario_values(scenario):
+    for instance_label in scenario["instances"]:
+        for is_flex_depot in scenario["is_flex_depot"]:
+            for max_driving_time_h in scenario["max_driving_time_h"]:
+                for allow_rejection in scenario["allow_rejection"]:
+                    for obj in scenario["obj"]:
+                        yield {
+                            "scenario_id": scenario["scenario_id"],
+                            "instance_label": instance_label,
+                            "is_flex_depot": is_flex_depot,
+                            "max_driving_time_h": max_driving_time_h,
+                            "allow_rejection": allow_rejection,
+                            "obj": obj
+                        }
+
+def generate_test_label(test_dict, max_time):
+    instance_label = test_dict["instance_label"]
+    is_flex_depot = test_dict["is_flex_depot"]
+    obj = test_dict["obj"]
+    max_driving_time_h = test_dict["max_driving_time_h"]
+    allow_rejection = test_dict["allow_rejection"]
+    scenario_id = test_dict["scenario_id"]
+
+    test_label = (
+        f"scenario_id={scenario_id}_"
+        f"instance_label={instance_label}_"
+        f"flex={is_flex_depot}_"
+        f"obj={obj}_"
+        f"allow_rejection={allow_rejection}_"
+        f"max_driving_time_h={max_driving_time_h}_"
+        f"max_runtime_min={max_time}"
+    )
+    return test_label
+```
+
+Test cases:
+
+```{python}
+
 ```
 
 ```{python}
@@ -160,14 +207,220 @@ import os
 from pprint import pprint
 import numpy as np
 
+
+m1 = dict(
+    scenario_id="M1",
+    instances=[
+        "vrppd_13-3-5",
+        "vrppd_23-3-10",
+        "vrppd_33-3-15"
+    ],
+    is_flex_depot=[
+        False,
+    ],
+    max_driving_time_h=[
+        None
+    ],
+    allow_rejection=[
+        False
+    ],
+    obj=[
+        darp.OBJ_MAX_PROFIT,
+    ],
+)
+
+m2 = dict(
+    scenario_id="M2",
+    instances=[
+        "vrppd_13-3-5",
+        "vrppd_23-3-10",
+        "vrppd_33-3-15"
+    ],
+    is_flex_depot=[
+        True,
+    ],
+    max_driving_time_h=[
+        None
+    ],
+    allow_rejection=[
+        False
+    ],
+    obj=[
+        darp.OBJ_MAX_PROFIT,
+    ],
+)
+
+m3 = dict(
+    scenario_id="M3",
+    instances=[
+        "vrppd_13-3-5",
+        "vrppd_23-3-10",
+        "vrppd_33-3-15"
+    ],
+    is_flex_depot=[
+        False,
+    ],
+    max_driving_time_h=[
+        None
+    ],
+    allow_rejection=[
+        False
+    ],
+    obj=[
+        darp.OBJ_MIN_FINAL_MAKESPAN,
+    ],
+)
+
+m4 = dict(
+    scenario_id="M4",
+    instances=[
+        "vrppd_13-3-5",
+        "vrppd_23-3-10",
+        "vrppd_33-3-15"
+    ],
+    is_flex_depot=[
+        False,
+    ],
+    max_driving_time_h=[
+        None
+    ],
+    allow_rejection=[
+        False
+    ],
+    obj=[
+        darp.OBJ_MIN_TOTAL_LATENCY,
+    ],
+)
+
+m5 = dict(
+    scenario_id="M5",
+    instances=[
+        "vrppd_13-3-5",
+        "vrppd_23-3-10",
+        "vrppd_33-3-15"
+    ],
+    is_flex_depot=[
+        True,
+    ],
+    max_driving_time_h=[
+        5,6,7
+    ],
+    allow_rejection=[
+        False, True
+    ],
+    obj=[
+        darp.OBJ_MAX_PROFIT,
+    ],
+)
+
+m6 = dict(
+    scenario_id="M6",
+    instances=[
+        "vrppd_13-3-5",
+        "vrppd_23-3-10",
+        "vrppd_33-3-15"
+    ],
+    is_flex_depot=[
+        True,
+    ],
+    max_driving_time_h=[
+        None
+    ],
+    allow_rejection=[
+        True
+    ],
+    obj=[
+        darp.OBJ_MAX_PROFIT,
+        darp.OBJ_MIN_TRAVEL_COST,
+    ],
+)
+
 # Aggregated results
-results_filepath = "../reports/tables/results.csv"
+results_filepath = "../reports/tables/results_scenarios.csv"
 
 if os.path.exists(results_filepath):
-    df_results = pd.read_csv(results_filepath)
+    df_results = pd.read_csv(results_filepath, index_col=False)
 else:
     df_results = pd.DataFrame()
 
+test_count = 0
+time_limit_min = 10
+dict_results = {}
+for scenario in [m1,m2,m3,m4,m5,m6]:
+    for config in generate_scenario_values(scenario):
+        
+        test_count += 1
+        print("#### Test", test_count)
+
+        test_label = generate_test_label(config, time_limit_min)
+        print(f"### Running test: {test_label}")
+        pprint(config)
+
+        print(f"### Instance:")
+        instance_obj = instances[config["instance_label"]]
+        pprint(instance_obj.config)
+
+            
+        ## Build model
+        model = Darp(instance_obj)
+        model.build(
+            max_driving_time_h=config["max_driving_time_h"],
+            allow_rejection=config["allow_rejection"]
+            )
+
+        # Configure model
+        model.set_flex_depot(config["is_flex_depot"])
+        model.set_obj(config["obj"])
+
+        # Configure logs
+        model.save_lp(f"../reports/lps/{test_label}.lp")
+        model.save_log(f"../reports/logs/{test_label}.log")
+
+        model.set_time_limit_min(time_limit_min)
+
+        # Run solver
+        solution_obj = model.solve()
+
+        df_config = pd.DataFrame([config])
+        
+        if solution_obj:
+
+            # Save solution object
+            dict_results[tuple(config.values())] = solution_obj
+
+            # Print solver statistics
+            pprint(solution_obj.solver_stats)
+
+            # Save route
+            df_routes = solution_obj.route_df(fn_dist=model.dist)
+            df_routes.to_csv(f"../reports/tables/routes/{test_label}.csv")
+            print(df_routes)
+
+            # Add results
+            df_test = pd.concat([df_config, solution_obj.to_df(), pd.DataFrame({"Max Runtime Min":[time_limit_min]})], axis=1)
+            df_results = pd.concat([df_results, df_test])
+
+            # Save summary statistics
+            df_results.to_csv(results_filepath, index=False)
+            
+        else:
+
+            dict_results[tuple(config.values())] = "Infeasible"
+            df_results = pd.concat([df_results, df_config])
+            df_results.to_csv(results_filepath, index=False)
+            print("Time out!")
+
+        
+
+```
+
+```{python}
+
+
+                    test_label = f"{instance_label}_flex={is_flex_depot}_obj={obj}_allow_rejection={allow_rejection}_max_driving_time_h={max_driving_time_h}"
+                    
+                    print(f"Running test: {test_label}")
+                    # Rest of the code...
 
 dict_results = {}
 for instance_label, instance_obj in instances.items():
@@ -215,7 +468,7 @@ for instance_label, instance_obj in instances.items():
             model.save_lp(f"../reports/lps/{test_label}.lp")
             model.save_log(f"../reports/logs/{test_label}.log")
 
-            model.set_time_limit_min(20)
+            # model.set_time_limit_min(20)
 
             # Run solver
             solution_obj = model.solve()
@@ -230,7 +483,7 @@ for instance_label, instance_obj in instances.items():
 
                 # Save route
                 df_routes = solution_obj.route_df(fn_dist=model.dist)
-                df_routes.to_csv(f"../reports/tables/{test_label}.csv")
+                df_routes.to_csv(f"../reports/tables/routes/{test_label}.csv")
                 print(df_routes)
 
                 # Add results
@@ -244,7 +497,7 @@ for instance_label, instance_obj in instances.items():
 
                 dict_results[(instance_label, is_flex_depot, obj)] = "Infeasible"
                 df_results = pd.concat([df_results, df_config])
-                print("Infeasible!")
+                print("Time out!")
 
     
 ```

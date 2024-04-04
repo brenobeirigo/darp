@@ -202,8 +202,9 @@ def vrppd_dict_to_instance_obj(instance_dict, instance_path=""):
         n_customers=len(instance_dict["pickup_locations"]),
         n_depots=len(instance_dict["depots"]),
         vehicle_capacity=instance_dict["trucks"]["capacity"],
-        maximum_ride_time_min=instance_dict["trucks"]["max_working_hours"],
-        time_horizon_min=instance_dict["trucks"]["max_working_hours"],
+        maximum_ride_time_min=None,
+        maximum_driving_time_min=instance_dict["trucks"]["max_working_hours"],
+        time_horizon_min=None,
     )
     
     depots_o = []

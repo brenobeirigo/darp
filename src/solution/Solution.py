@@ -271,6 +271,7 @@ class Solution:
             'Time Horizon (min)': self.instance.config.time_horizon_min,
             'Vehicle Capacity': self.instance.config.vehicle_capacity,
             'Maximum Ride Time (min)': self.instance.config.maximum_ride_time_min,
+            'Maximum Driving Time (min)': self.instance.config.maximum_driving_time_min,
             'Number of Depots': self.instance.config.n_depots,
         }
         config_df = pd.DataFrame([config_info])
