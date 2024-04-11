@@ -34,9 +34,9 @@ NODE_PATTERN_PARRAGH = (
 @dataclass
 class SolutionNode:
     id: int
-    w: float
-    b: float
-    t: float
+    w: float # Waiting
+    b: float # Arrival
+    t: float # Ride time
     q: float
 
     def __repr__(self) -> str:
@@ -59,6 +59,12 @@ class SolutionVehicle:
     T: float
     T_avg: float  # Avg. transit time
     route: list[SolutionNode]
+    arrival_depot: float = None
+    departure_depot: float = None
+    
+    @property
+    def driving_time(self):
+        return self.arrival_depot - self.departure_depot
     
     def node_route(self):
         return tuple([n.id for n in self.route])
@@ -228,12 +234,14 @@ class SolutionVehicle:
 
 @dataclass
 class SolutionSummary:
-    cost: float
+    total_distance: float
     total_duration: float
     total_waiting: float
     avg_waiting: float
     total_transit: float
     avg_transit: float
+    total_latency: float
+    final_makespan: float
 
 
 @dataclass
@@ -247,6 +255,8 @@ class SolutionSolver:
     solver_numiterations: int
     solver_numnodes: int
     solver_gap: float
+    solver_work: float = None
+    solver_objbound: float = None
 
 
 @dataclass
@@ -266,36 +276,53 @@ class Solution:
     def to_df(self):
         # Instance information
         config_info = {
-            'Number of Vehicles': self.instance.config.n_vehicles,
+            'Number of Depots': self.instance.config.n_depots,
             'Number of Customers': self.instance.config.n_customers,
-            'Time Horizon (min)': self.instance.config.time_horizon_min,
+            'Number of Vehicles': self.instance.config.n_vehicles,
             'Vehicle Capacity': self.instance.config.vehicle_capacity,
             'Maximum Ride Time (min)': self.instance.config.maximum_ride_time_min,
             'Maximum Driving Time (min)': self.instance.config.maximum_driving_time_min,
-            'Number of Depots': self.instance.config.n_depots,
+            'Time Horizon (min)': self.instance.config.time_horizon_min,
+            
         }
         config_df = pd.DataFrame([config_info])
         
-        summary_df = pd.DataFrame([{
-            'Cost': self.summary.cost,
-            'Total Duration': self.summary.total_duration,
-            'Total Waiting': self.summary.total_waiting,
-            'Average Waiting': self.summary.avg_waiting,
-            'Total Transit': self.summary.total_transit,
-            'Average Transit': self.summary.avg_transit
-        }])
+        if self.summary:
+            summary_df = pd.DataFrame([{
+                'Total Distance (km)': self.summary.total_distance,
+                'Total Duration (min)': self.summary.total_duration,
+                'Total Waiting (min)': self.summary.total_waiting,
+                'Average Waiting (min)': self.summary.avg_waiting,
+                'Total Transit (min)': self.summary.total_transit,
+                'Average Transit (min)': self.summary.avg_transit,
+                'Total Latency (min)': self.summary.total_latency,
+                'Final Makespan (min)': self.summary.final_makespan,
+            }])
+        else:
+            summary_df = pd.DataFrame([{
+                'Total Distance (km)': None,
+                'Total Duration (min)': None,
+                'Total Waiting (min)': None,
+                'Average Waiting (min)':  None,
+                'Total Transit (min)': None,
+                'Average Transit (min)': None,
+                'Total Latency (min)': None,
+                'Final Makespan (min)': None,
+            }])
         
         # Create a DataFrame for the Solver Statistics
         solver_df = pd.DataFrame([{
             'Objective Value': self.solver_stats.sol_objvalue,
-            'CPU Time': self.solver_stats.sol_cputime,
+            'CPU Time (sec)': self.solver_stats.sol_cputime,
             'Number of Edges': self.solver_stats.graph_numedges,
             'Number of Nodes': self.solver_stats.graph_numnodes,
             'Number of Constraints': self.solver_stats.solver_numconstrs,
             'Number of Variables': self.solver_stats.solver_numvars,
             'Number of Iterations': self.solver_stats.solver_numiterations,
             'Number of Solver Nodes': self.solver_stats.solver_numnodes,
-            'Solver Gap': self.solver_stats.solver_gap
+            'Solver Gap': self.solver_stats.solver_gap,
+            'Objective Bound': self.solver_stats.solver_objbound,
+            'Work': self.solver_stats.solver_work,
         }])
         
         # Combine all DataFrames into one, with a hierarchical column structure

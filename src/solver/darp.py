@@ -1,21 +1,26 @@
 from collections import defaultdict, OrderedDict
 import logging
 from pprint import pprint
-from gurobipy import GRB, quicksum, Model
+from gurobipy import GRB, quicksum, Model, Env
 import os
 import pathlib
 
 logger = logging.getLogger("__main__" + "." + __name__)
 
-OBJ_MIN_TRAVEL_DISTANCE = "obj_cost"
-OBJ_MAX_PROFIT = "obj_profit"
-OBJ_MIN_TRAVEL_COST = "obj_emissions"
-OBJ_MIN_TOTAL_LATENCY = "obj_latency"
-OBJ_MIN_FINAL_MAKESPAN = "obj_makespan"
+OBJ_MIN_TRAVEL_DISTANCE = "obj_min_travel_distance"
+OBJ_MIN_DRIVING_TIME = "obj_min_driving_time"
+OBJ_MAX_PROFIT = "obj_max_profit"
+OBJ_MIN_PROFIT = "obj_min_profit"
+OBJ_MIN_TRAVEL_COST = "obj_min_travel_cost"
+OBJ_MAX_TRAVEL_COST = "obj_max_travel_cost"
+OBJ_MIN_TOTAL_LATENCY = "obj_min_total_latency"
+OBJ_MIN_FINAL_MAKESPAN = "obj_min_final_makespan"
 CONSTR_FLEXIBLE_DEPOT = "constr_flexible_depot"
 CONSTR_FIXED_DEPOT = "constr_fixed_depot"
+MO_MIN_PROFIT_MIN_TRAVEL_COST = "mo_min_profit_min_travel_cost"
 
 from ..data.instance import Instance
+from ..data.scenario import ScenarioConfig
 from ..solution.Solution import (
     SolutionNode,
     SolutionFleet,
@@ -73,15 +78,29 @@ def get_arc_set(
 
 
 class Darp:
-    def __init__(self, i: Instance):
+    def __init__(self, i: Instance, s: ScenarioConfig = None):
         self.instance = i
         dict_data = i.get_data()
+        
+        # Scenario is defined, overwrite parameters according to 
+        # scenario specs
+        if s:
+            dict_data["K_params"] = {
+                k:dict(
+                    cost_per_min=s.cost_per_min,
+                    cost_per_km=s.cost_per_km,
+                    speed_km_h=s.speed_km_h,
+                    revenue_per_load_unit=s.revenue_per_load_unit) 
+                for k, v in dict_data["K_params"].items()}
+            
         self.init(**dict_data)
         self.init_solver()
 
 
         # self. = wrapper_time_matrix
     def travel_time_min(self, k, i, j):
+        # If speed is not defined, km_min = 1. Then, distance
+        # and travel time are equivalent.
         km_min = self.K_params[k]["speed_km_h"]/60
         travel_time_min = self.dist(i,j)/km_min
         return travel_time_min
@@ -171,11 +190,15 @@ class Darp:
     def set_time_limit_min(self, limit_in_min):
         self.solver.setParam('TimeLimit', limit_in_min*60)
         return self
-    
+
     def init_solver(self):
+        
         # Create the mip solver with the Gurobi backend
-        self.solver = Model()
-        self.solver.setParam('OutputFlag', 1)
+        self.solver = Model("PDPTW")
+        env = Env(empty=True)
+        env.setParam("OutputFlag",0)
+        self.solver.params.OutputFlag = True
+        self.solver.params.LogToConsole = False
         self.set_time_limit_min(10)
         self.solution_ = None
 
@@ -189,13 +212,19 @@ class Darp:
         if obj == OBJ_MIN_TRAVEL_DISTANCE:
             self.set_objfunc_min_distance_traveled()
         elif obj == OBJ_MAX_PROFIT:
-            self.set_objfunc_max_profit()
+            self.set_objfunc_profit(obj=GRB.MAXIMIZE)
+        elif obj == OBJ_MIN_PROFIT:
+            self.set_objfunc_profit(obj=GRB.MINIMIZE)
         elif obj == OBJ_MIN_TRAVEL_COST:
-            self.set_objfunc_min_travel_cost()
+            self.set_objfunc_travel_cost(obj=GRB.MINIMIZE)
+        elif obj == OBJ_MAX_TRAVEL_COST:
+            self.set_objfunc_travel_cost(obj=GRB.MAXIMIZE)
         elif obj == OBJ_MIN_TOTAL_LATENCY:
             self.set_objfunc_min_total_latency()
         elif obj == OBJ_MIN_FINAL_MAKESPAN:
             self.set_objfunc_min_total_makespan()
+        elif obj == OBJ_MIN_DRIVING_TIME:
+            self.set_objfunc_min_driving_time()
         else:
             self.set_objfunc_min_distance_traveled()
             
@@ -233,6 +262,7 @@ class Darp:
         self.constr_ride_times_are_lower_than_request_thresholds()
         self.constr_ensure_feasible_ride_times()
         self.constr_driving_time_between_depots()
+        # self.constr_arrival_time_at_depot_only_if_visit()
         if max_driving_time_h:
             self.constr_max_driving_time(max_driving_time_h)
 
@@ -242,6 +272,8 @@ class Darp:
         self.constr_vehicle_starts_empty()
         self.constr_vehicle_ends_empty()
         self.constr_vehicle_only_visits_valid_nodes()
+        
+        self.constr_vehicle_only_arrival_departure_depot_times()
         
         self.constr_makespan()
 
@@ -269,12 +301,16 @@ class Darp:
         
         self.var_driving_time = {}
         
+        self.var_end_working_time_vehicle = {}
+        self.var_start_working_time_vehicle = {}
 
         self.declare_decision_vars()
         self.declare_arrival_vars()
         self.declare_load_vars()
         self.declare_ridetime_vars()
         self.declare_driving_time_vars()
+        self.declare_end_working_time_vars()
+        self.declare_start_working_time_vars()
         
         # The max arrival time at the depot across the fleet
         self.var_makespan = self.solver.addVar(0, self.total_horizon, vtype=GRB.CONTINUOUS, name="var_makespan")
@@ -296,7 +332,7 @@ class Darp:
             for i in self.N:
                 label_var_B = f"B[{k},{i}]"
                 self.var_B[k][i] = self.solver.addVar(
-                    lb=0, ub=self.total_horizon, vtype=GRB.CONTINUOUS, name=label_var_B
+                    lb=self.e[i], ub=self.l[i], vtype=GRB.CONTINUOUS, name=label_var_B
                 )
 
     def declare_load_vars(self):
@@ -323,6 +359,18 @@ class Darp:
         for k in self.K:
             self.var_driving_time[k] = self.solver.addVar(
                     lb=0, ub=self.total_horizon, vtype=GRB.CONTINUOUS, name=f"driving_t_{k}"
+                )
+    
+    def declare_end_working_time_vars(self):
+        for k in self.K:
+            self.var_end_working_time_vehicle[k] = self.solver.addVar(
+                    lb=0, vtype=GRB.CONTINUOUS, name=f"end_working_time_vehicle_{k}"
+                )
+    
+    def declare_start_working_time_vars(self):
+        for k in self.K:
+            self.var_start_working_time_vehicle[k] = self.solver.addVar(
+                    lb=0, vtype=GRB.CONTINUOUS, name=f"start_working_time_vehicle_{k}"
                 )
 
     ####################################################################
@@ -383,7 +431,7 @@ class Darp:
         logger.debug("objective_function_min_distance_traveled")
         
 
-    def set_objfunc_min_travel_cost(self):
+    def set_objfunc_travel_cost(self, obj=GRB.MINIMIZE):
 
         obj_exp = []
         for k in self.K:
@@ -402,12 +450,22 @@ class Darp:
                     f"{self.dist(i, j) * self.K_params[k]['cost_per_km']:06.2f}"
                 )
 
-        self.solver.setObjective(quicksum(obj_exp), GRB.MINIMIZE)
+        self.solver.setObjective(quicksum(obj_exp), obj)
 
         logger.debug("objective_function_min_cost_per_km")
     
-    def set_objfunc_max_profit(self):
+    def set_objfunc_min_driving_time(self):
+        
+        obj_expr = []
+        for k in self.K:
+            obj_expr.append(self.var_driving_time[k])
+        self.solver.setObjective(quicksum(obj_expr), GRB.MINIMIZE)
 
+        logger.debug("objective_function_min_driving_time")
+
+        
+    def set_objfunc_profit(self, obj=GRB.MAXIMIZE):
+        
         obj_expr = []
         for k in self.K:
             total_cost_per_min = (self.K_params[k]["cost_per_min"] * self.var_driving_time[k])
@@ -442,7 +500,7 @@ class Darp:
 
                     obj_expr.append(revenue_load)
 
-        self.solver.setObjective(quicksum(obj_expr), GRB.MAXIMIZE)
+        self.solver.setObjective(quicksum(obj_expr), obj)
 
         logger.debug("objective_function_min_distance_traveled")
 
@@ -457,7 +515,7 @@ class Darp:
         for k in self.K:
             constr_label = f"driving_time_between_depots_vehicle_{k}"
             self.solver.addConstr(
-                self.var_driving_time[k]  == sum(self.var_B[k][d] for d in self.destination_depot) - sum(self.var_B[k][o] for o in self.origin_depot),
+                self.var_driving_time[k]  == self.var_end_working_time_vehicle[k] - self.var_start_working_time_vehicle[k],
                 name=constr_label
             )
             
@@ -541,7 +599,7 @@ class Darp:
 
                 logger.debug(constr_label)
 
-    def constr_every_vehicle_leaves_the_start_terminal(self):
+    def constr_arrival_time_at_depot_only_if_visit(self):
         for k in self.K:
             for o in self.origin_depot:
                 rhs = self.l[o] * quicksum(
@@ -575,6 +633,9 @@ class Darp:
                     name=constr_label_d_visit
                 )
                 logger.debug(constr_label_d_visit)
+    
+    def constr_every_vehicle_leaves_the_start_terminal(self):
+        for k in self.K:
 
             constr_label = f"vehicle_{k}_leaves_a_start_terminal"
             self.solver.addConstr(
@@ -660,6 +721,52 @@ class Darp:
             logger.debug(constr_label)
 
 
+    def constr_vehicle_only_arrival_departure_depot_times(self):
+        for k in self.K:
+            for i, j in self.A:
+                if j in self.destination_depot:
+                    
+                    constr_label = (
+                        f"vehicle_{k}_end_working_time_lt_{i}-{j}_arrival"
+                    )
+                    
+                    self.solver.addConstr(
+                         self.var_end_working_time_vehicle[k] <= self.var_B[k][j] + self.total_horizon *(1 - self.var_x[k][i][j]),
+                        name=constr_label
+                    )
+                    
+                    constr_label = (
+                        f"vehicle_{k}_end_working_time_gt_{i}-{j}_arrival"
+                    )
+                    
+                    self.solver.addConstr(
+                         self.var_end_working_time_vehicle[k] >= self.var_B[k][j] - self.total_horizon *(1 - self.var_x[k][i][j]),
+                        name=constr_label
+                    )
+                    
+                    
+                if i in self.origin_depot:
+                    
+                    constr_label = (
+                        f"vehicle_{k}_start_working_time_lt_{i}-{j}_arrival"
+                    )
+                    
+                    self.solver.addConstr(
+                         self.var_start_working_time_vehicle[k] <= self.var_B[k][i] + self.total_horizon *(1 - self.var_x[k][i][j]),
+                        name=constr_label
+                    )
+                    
+                    constr_label = (
+                        f"vehicle_{k}_start_working_time_gt_{i}-{j}_arrival"
+                    )
+                    
+                    self.solver.addConstr(
+                         self.var_start_working_time_vehicle[k] >= self.var_B[k][i] - self.total_horizon *(1 - self.var_x[k][i][j]),
+                        name=constr_label
+                    )
+                    
+                    logger.debug(constr_label)
+                    
     def constr_vehicle_only_visits_valid_nodes(self):
         for k in self.K:
             for i, j in self.A:
@@ -866,48 +973,127 @@ class Darp:
 
     @property
     def solver_gap_(self):
-        # MIPGap provides the current relative gap between the best objective bound and the objective of the best feasible solution.
-        return self.solver.MIPGap
+        """
+        MIPGap provides the current relative gap between the best objective
+        bound and the objective of the best feasible solution.
+        """
+        try:
+            return self.solver.MIPGap
+        except:
+            return None
 
     @property
     def solver_numvars_(self):
-        # NumVars returns the number of variables in the model.
-        return self.solver.NumVars
+        """
+        NumVars returns the number of variables in the model.
+        """
+        try:
+            return self.solver.NumVars
+        except:
+            return None
 
     @property
     def solver_numconstrs_(self):
-        # NumConstrs returns the number of constraints in the model.
-        return self.solver.NumConstrs
+        """
+        NumConstrs returns the number of constraints in the model.
+        """
+        try:
+            return self.solver.NumConstrs
+        except:
+            return None
 
     @property
     def sol_objvalue_(self):
-        # ObjVal returns the objective value of the current solution.
-        return self.solver.ObjVal
+        """
+        ObjVal returns the objective value of the current solution.
+        """
+        try:
+            return self.solver.ObjVal
+        except:
+            return None
 
     @property
     def sol_cputime_(self):
-        # Runtime returns the optimization time in seconds.
-        return self.solver.Runtime
+        """
+        Runtime returns the optimization time in seconds.
+        """
+        try:
+            return self.solver.Runtime
+        except:
+            return None
 
     @property
     def graph_numnodes_(self):
-        # The number of nodes in the graph is derived from the length of the N list.
-        return len(self.N)
+        """
+        The number of nodes in the graph is derived from the length of the
+        N list.
+        """
+        try:
+            return len(self.N)
+        except:
+            return None
 
     @property
     def graph_numedges_(self):
-        # The number of edges in the graph is derived from the length of the A list.
-        return len(self.A)
+        """
+        The number of edges in the graph is derived from the length of the
+        A list.
+        """
+        try:
+            return len(self.A)
+        except:
+            return None
 
     @property
     def solver_numiterations_(self):
-        # IterCount returns the number of simplex iterations performed during the optimization.
-        return self.solver.IterCount
+        """
+        IterCount returns the number of simplex iterations performed during
+        the optimization.
+        """
+        try:
+            return self.solver.IterCount
+        except:
+            return None
 
     @property
     def solver_numnodes_(self):
-        # NodeCount returns the number of MIP nodes explored during the optimization.
-        return self.solver.NodeCount
+        """
+        NodeCount returns the number of MIP nodes explored during the
+        optimization.
+        """
+        try:
+            return self.solver.NodeCount
+        except:
+            return None
+
+    @property
+    def solver_objbound_(self):
+        """
+        Best available objective bound (lower bound for minimization, upper
+        bound for maximization)
+        """
+        try:
+            return self.solver.ObjBound
+        except:
+            return None
+
+    @property
+    def solver_work_(self):
+        """
+        Work spent on the most recent optimization. In contrast to Runtime,
+        work is deterministic, meaning that you will get exactly the same
+        result every time provided you solve the same model on the same
+        hardware with the same parameter and attribute settings.
+        The units on this metric are arbitrary. One work unit corresponds
+        very roughly to one second on a single thread, but this greatly
+        depends on the hardware on which Gurobi is running and the model
+        that is being solved.
+        """
+        try:
+            return self.solver.Work
+        except:
+            return None
+
 
     @property
     def sol_(self) -> SolutionSolver:
@@ -922,6 +1108,8 @@ class Darp:
             self.solver_numiterations_,
             self.solver_numnodes_,
             self.solver_gap_,
+            self.solver_work_,
+            self.solver_objbound_,
         )
 
 
@@ -932,6 +1120,12 @@ class Darp:
     def var_driving_time_sol(self, k):
         # Accessing the solution value of variable driving_time of vehicle k
         return self.var_driving_time[k].X
+    
+    def var_arrival_depot_sol(self, k):
+        return self.var_end_working_time_vehicle[k].X
+    
+    def var_departure_depot_sol(self, k):
+        return self.var_start_working_time_vehicle[k].X
 
     def var_L_sol(self, k, i):
         # Accessing the solution value of variable L for vehicle k at pickup node i
@@ -945,7 +1139,7 @@ class Darp:
         # Accessing the solution value of variable x indicating if vehicle k travels from node i to j
         return self.var_x[k][i][j].X
 
-    def get_dict_route_vehicle(self, edges):
+    def get_dict_route_vehicle(self, edges)->dict[int, list[int]]:
         dict_vehicle_arcs = defaultdict(lambda: defaultdict(str))
         dict_vehicle_origin = dict()
         for k, i, j in edges:
@@ -976,7 +1170,7 @@ class Darp:
 
         return edges
 
-    def get_vehicle_routes_dict(self):
+    def get_vehicle_routes_dict(self) -> dict[int, list[int]]:
         flow_edges = self.get_flow_edges()
         return self.get_dict_route_vehicle(flow_edges)
 
@@ -1008,13 +1202,13 @@ class Darp:
         # )
 
     def get_solution(self):
-        result = dict()
+
         total_cost = 0
         total_transit = 0
         total_waiting = 0
         total_duration = 0
 
-        fleet_solution = dict()
+        fleet_solution:dict[int,SolutionVehicle] = dict()
         vehicle_routes_dict = self.get_vehicle_routes_dict()
         for k in self.K:
             k_route_node_ids = vehicle_routes_dict[k]
@@ -1088,15 +1282,26 @@ class Darp:
                 T=k_total_transit,
                 T_avg=k_avg_transit,
                 route=list(k_route_node_data.values()),
+                arrival_depot=self.var_end_working_time_vehicle[k].X,
+                departure_depot=self.var_start_working_time_vehicle[k].X,
             )
+            
+        total_latency = sum([
+            n.b
+            for sol_vehicle in fleet_solution.values()
+            for n in sol_vehicle.route
+            if n.id in self.D or n.id in self.P
+        ])
 
         summary = SolutionSummary(
-            cost=total_cost,
+            total_distance=total_cost,
             total_duration=total_duration,
             total_waiting=total_waiting,
             avg_waiting=total_waiting / len(self.K),
             total_transit=total_transit,
             avg_transit=total_transit / len(self.K),
+            total_latency=total_latency,
+            final_makespan=max(self.var_end_working_time_vehicle[k].X for k in self.K)
         )
 
         return Solution(
@@ -1109,6 +1314,8 @@ class Darp:
     def save_log(self, path):
         
         path2 = pathlib.Path(path)
+        logger.debug(f"Saving .log at '{path2}'")
+
         if path2.suffix != ".log":
             raise Exception(f"{path} is not a log file.")
         
@@ -1118,7 +1325,8 @@ class Darp:
     def save_lp(self, path):
         path2 = pathlib.Path(path)
 
-        print(path2.parent, path2.suffix)
+        logger.debug(f"Saving .lp at '{path2}'")
+
         if path2.suffix != ".lp":
             raise Exception(f"{path} is not a lp file.")
         
@@ -1132,61 +1340,93 @@ class Darp:
         
         print("STATUS: ", self.solver.Status, self.instance.config.label)
 
-        if self.solver.Status == GRB.Status.OPTIMAL or (GRB.Status.TIME_LIMIT and self.solver.SolCount > 0):
-            self.solution_ = self.get_solution()
-            logger.debug("# Flow variables:")
-            flow_edges = self.get_flow_edges()
-            for k, i, j in flow_edges:
-                logger.debug(
-                    f"{self.var_x[k][i][j].VarName:>20} = "
-                    f"{self.var_x[k][i][j].X:<7.2f}"
-                )
-
-            logger.debug("# Routes:")
-            dict_vehicle_routes = self.get_dict_route_vehicle(flow_edges)
-            logger.debug(dict_vehicle_routes)
-
-
-            logger.debug("# Driving times:")
-            for k in self.K:
-                logger.debug(
-                    f"{self.var_driving_time[k].VarName:>20} = "
-                    f"{self.var_driving_time[k].X:>7.2f}"
-                )
+        if self.solver.Status in [GRB.Status.OPTIMAL, GRB.Status.TIME_LIMIT]:
             
-            logger.debug("# Arrivals")
-            for k in self.K:
-                for i in self.N:
+            if  self.solver.SolCount > 0:
+                
+                self.solution_ = self.get_solution()
+                
+                logger.debug("\n# Flow variables:")
+                flow_edges = self.get_flow_edges()
+                for k, i, j in flow_edges:
                     logger.debug(
-                        f"{self.var_B[k][i].VarName:>20} = "
-                        f"{self.var_B[k][i].X:>7.2f}"
+                        f"{self.var_x[k][i][j].VarName:>40} = "
+                        f"{self.var_x[k][i][j].X:<7.2f}"
                     )
 
-            logger.debug("# Loads")
-            for k in self.K:
-                for i in self.N:
+                logger.debug("# Routes:")
+                dict_vehicle_routes = self.get_dict_route_vehicle(flow_edges)
+                logger.debug(dict_vehicle_routes)
+
+
+                logger.debug("# Driving times:")
+                for k in self.K:
                     logger.debug(
-                        f"{self.var_Q[k][i].VarName:>20} = "
-                        f"{self.var_Q[k][i].X:>7.0f}"
+                        f"{self.var_driving_time[k].VarName:>40} = "
+                        f"{self.var_driving_time[k].X:>7.2f}"
+                    )
+                
+                logger.debug("# Arrivals")
+                for k in self.K:
+                    for i in self.N:
+                        logger.debug(
+                            f"{self.var_B[k][i].VarName:>40} = "
+                            f"{self.var_B[k][i].X:>7.2f}"
+                        )
+                
+                logger.debug("# Vehicles (departure/arrival)")
+                for k in self.K:
+                    logger.debug(
+                        f"{self.var_start_working_time_vehicle[k].VarName:>40} = "
+                        f"{self.var_start_working_time_vehicle[k].X:>7.2f}"
+                    )
+                    logger.debug(
+                        f"{self.var_end_working_time_vehicle[k].VarName:>40} = "
+                        f"{self.var_end_working_time_vehicle[k].X:>7.2f}"
                     )
 
-            logger.debug(" # Ride times:")
-            for k in self.K:
-                for i in self.P:
-                    logger.debug(
-                        f"{self.var_L[k][i].VarName:>20} = "
-                        f"{self.var_L[k][i].X:>7.2f}"
-                    )
+                logger.debug("# Loads")
+                for k in self.K:
+                    for i in self.N:
+                        logger.debug(
+                            f"{self.var_Q[k][i].VarName:>40} = "
+                            f"{self.var_Q[k][i].X:>7.0f}"
+                        )
 
-            logger.debug("# Problem solved in:")
-            logger.debug(f"\t- {self.solver.Runtime:.1f} seconds")
-            logger.debug(f"\t- {self.solver.IterCount} iterations")
-            logger.debug(f"\t- {self.solver.NodeCount} branch-and-bound nodes")
-            logger.debug(f"# Objective value = {self.solver.ObjVal:.2f}")
+                logger.debug("# Ride times:")
+                for k in self.K:
+                    for i in self.P:
+                        logger.debug(
+                            f"{self.var_L[k][i].VarName:>40} = "
+                            f"{self.var_L[k][i].X:>7.2f}"
+                        )
 
+                logger.debug("# Problem solved in:")
+                logger.debug(f"\t- {self.solver.Runtime:.1f} seconds")
+                logger.debug(f"\t- {self.solver.IterCount} iterations")
+                logger.debug(f"\t- {self.solver.NodeCount} branch-and-bound nodes")
+                logger.debug(f"# Objective value = {self.solver.ObjVal:.2f}")
+
+            
+            else:
+                self.solution_ = Solution(
+                    instance=self.instance,
+                    summary=None,
+                    solver_stats=self.sol_,
+                    vehicle_routes=None,
+                )
+
+            
             return self.solution_
+            
 
         else:
             logger.debug("The problem does not have an optimal solution.")
+            
+            self.solution_ = Solution(
+                    instance=self.instance,
+                    summary=None,
+                    solver_stats=self.sol_,
+                    vehicle_routes=None,
+                )
             return None
-
