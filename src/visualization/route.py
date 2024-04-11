@@ -16,10 +16,10 @@ import pandas as pd
 ### Constant Colors
 
 node_features = {
-    NodeType.D_DEPOT.name: {"color": "k", "marker": "s"},
-    NodeType.O_DEPOT.name: {"color": "k", "marker": "s"},
-    NodeType.DO.name: {"color": "r", "marker": "o"},
-    NodeType.PU.name: {"color": "g", "marker": "o"},
+    NodeType.D_DEPOT.name: {"color": "k", "marker": "s", "size": 100, "font-color": "w", "edgecolor": "w"},
+    NodeType.O_DEPOT.name: {"color": "k", "marker": "s", "size": 100, "font-color": "w", "edgecolor": "w"},
+    NodeType.DO.name: {"color": "k", "marker": "o", "font-color": "w", "edgecolor": "w", "size": 150},
+    NodeType.PU.name: {"color": "w", "marker": "o", "font-color": "k", "edgecolor": "k", "size": 150},
 }
 
 
@@ -49,7 +49,7 @@ def plot_arrows(
         d = df.iloc[idx + 1]
         arrow = patches.FancyArrowPatch(
             p[["x", "y"]].to_list(),
-            d[["x", "y"]].to_list(),
+            np.array(d[["x", "y"]].to_list())*0.97,
             edgecolor=route_color,
             facecolor=route_color,
             arrowstyle=arrowstyle,
@@ -57,6 +57,7 @@ def plot_arrows(
             linewidth=linewidth,
             mutation_scale=10,
         )
+        
         axis.add_artist(arrow)
 
 
@@ -82,7 +83,7 @@ def plot_line_collection(
 #### Plot Nodes
 
 
-def plot_nodes(axis, df):
+def plot_nodes(axis, df, size_node=150):
     """
     Plot nodes on the axis using DataFrame.
     """
@@ -95,7 +96,7 @@ def plot_nodes(axis, df):
         depot_df["y"],
         color=node_features[NodeType.O_DEPOT.name]["color"],
         marker=node_features[NodeType.O_DEPOT.name]["marker"],
-        s=15,
+        s=node_features[NodeType.O_DEPOT.name].get("size", size_node),
     )
 
     # Pickup nodes
@@ -105,7 +106,8 @@ def plot_nodes(axis, df):
         pu_df["y"],
         color=node_features[NodeType.PU.name]["color"],
         marker=node_features[NodeType.PU.name]["marker"],
-        s=15,
+        edgecolors=node_features[NodeType.PU.name]["edgecolor"],
+        s=node_features[NodeType.PU.name].get("size", size_node),
     )
 
     # Dropoff nodes
@@ -115,29 +117,40 @@ def plot_nodes(axis, df):
         du_df["y"],
         color=node_features[NodeType.DO.name]["color"],
         marker=node_features[NodeType.DO.name]["marker"],
-        s=15,
+        edgecolors=node_features[NodeType.DO.name]["edgecolor"],
+        s=node_features[NodeType.DO.name].get("size", size_node),
     )
 
 
 #### Plot Node Labels
 
 
-def plot_node_labels(axis, df, ignore_depot=True):
+def plot_node_labels(axis, df, ignore_depot=True, fontsize=7):
     """
     Plot labels for nodes using DataFrame.
     """
     if ignore_depot:
         df = df[
             ~df["node_type"].isin(
-                [NodeType.O_DEPOT.name, NodeType.D_DEPOT.name]
+                [NodeType.O_DEPOT.name]
             )
         ]
 
     for _, row in df.iterrows():
         xy = row[["x", "y"]].to_list()
-        axis.annotate(
-            row["alias"], xy=xy, fontsize=9, xytext=np.array(xy) + 0.05
+         # Add text annotations for the nodes
+    for _, row in df.iterrows():
+        axis.text(
+            row['x'],
+            row['y'],
+            str(row['alias']),
+            fontsize=fontsize,
+            ha='center',
+            va='center',
+            fontfamily='Consolas',
+            color=node_features[row["node_type"]]["font-color"]
         )
+        
 
 
 #### Set Axis Limits
@@ -171,6 +184,7 @@ def plot_legend(axis):
             label="Depot",
             markerfacecolor=node_features[NodeType.O_DEPOT.name]["color"],
             markersize=10,
+            markeredgecolor="k", 
         ),
         Line2D(
             [0],
@@ -180,6 +194,7 @@ def plot_legend(axis):
             label="Pickup",
             markerfacecolor=node_features[NodeType.PU.name]["color"],
             markersize=10,
+            markeredgecolor=node_features[NodeType.PU.name]["edgecolor"],
         ),
         Line2D(
             [0],
@@ -189,6 +204,7 @@ def plot_legend(axis):
             label="Drop off",
             markerfacecolor=node_features[NodeType.DO.name]["color"],
             markersize=10,
+            markeredgecolor=node_features[NodeType.DO.name]["edgecolor"],
         ),
     ]
     axis.legend(
@@ -224,6 +240,8 @@ def plot_vehicle_route(
     x_title="x",
     y_title="y",
     title=None,
+    size_node=150,
+    fontsize=7
 ):
     """
     Plot a single vehicle route using DataFrame.
@@ -238,9 +256,9 @@ def plot_vehicle_route(
         plot_line_collection(axis, df, route_color, linestyle, linewidth)
 
     if show_nodes:
-        plot_nodes(axis, df)
+        plot_nodes(axis, df[df["node_type"]!=NodeType.D_DEPOT.name], size_node = size_node)
     if show_node_labels:
-        plot_node_labels(axis, df)
+        plot_node_labels(axis, df[df["node_type"]!=NodeType.D_DEPOT.name], ignore_depot=False, fontsize=fontsize)
 
     axis.set_xlabel(x_title)
     axis.set_ylabel(y_title)
