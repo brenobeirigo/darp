@@ -66,7 +66,9 @@ def one_depot_one_customer_one_vehicle(request) -> dict[str, list]:
     """Fixture for creating a simple VRPPD instance configuration."""
     params = request.param
     speed_km_h, capacity = params["speed"], params["capacity"]
-
+    # 10km/60km/60min = 1/5*60 = 10
+    # 10[0,500]-------->20[100,200]----->30[300,400]----->50[0,500]
+    #      190  + 10 +              +100                +20 =  320
     depot = generate_node(1, 0, 0, 500, 10, 50)
     pickup = generate_node(2, 20, 100, 200, 20, 50)
     delivery = generate_node(3, -20, 300, 400, 30, 50)
@@ -110,7 +112,14 @@ def two_diff_depots_two_customers_one_vehicle(request) -> dict[str, list]:
     """Fixture for creating a simple VRPPD instance configuration."""
     params = request.param
     speed_km_h, capacity, max_working_hours = params["speed"], params["capacity"], params.get("max_working_hours", None)
-
+    # 1--(10)-->3--(5)-->4--(5)-->5--(5)-->6--(10)-->8 
+    # 10       20        25       30       35       40
+    
+    # 2--(15)-->4--(5)-->3--(10)-->5--(5)-->6--(5)-->8 = 40
+    # 40       25        20        30       35       40
+    
+    # 2--(20)-->3--(5)-->4--(5)-->5--(5)-->6--(5)-->8 = 40
+    # 40       20        25       30       35       40
     depot1 = generate_node(1, 0, 0, 500, 10, 50)
     depot2 = generate_node(2, 0, 0, 500, 40, 50)
     pickup1 = generate_node(3, 20, 0, 500, 20, 50)
