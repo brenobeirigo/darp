@@ -30,10 +30,10 @@ class Vehicle:
     def __init__(
             self,
         capacity: int,
-        cost_per_min=0,
-        cost_per_km=0,
-        speed_km_h=0,
-        revenue_per_load_unit=0,
+        cost_per_min=1,
+        cost_per_km=1,
+        speed_km_h=60,
+        revenue_per_load_unit=1,
         alias="",
     ):
         
