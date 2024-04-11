@@ -76,7 +76,7 @@ def cordeau_parser(instance_path) -> Instance:
         # Create vehicles at the origin
         o_depot_line = lines[1]
         depot_o = parse_node_line(
-            o_depot_line, node_type=NodeType.O_DEPOT, alias="Depot"
+            o_depot_line, node_type=NodeType.O_DEPOT, # alias="Depot"
         )
 
         # Parse all request lines
@@ -90,7 +90,7 @@ def cordeau_parser(instance_path) -> Instance:
         try:
             d_depot_line = lines[2 * config.n_customers + 2]
             depot_d = parse_node_line(
-                d_depot_line, node_type=NodeType.D_DEPOT, alias="Depot"
+                d_depot_line, node_type=NodeType.D_DEPOT, #alias="Depot"
             )
         except:
             depot_d = NodeInfo(
@@ -102,7 +102,7 @@ def cordeau_parser(instance_path) -> Instance:
                 depot_o.earliest,
                 depot_o.latest,
                 NodeType.D_DEPOT,
-                "Depot",
+                #"Depot",
             )
 
         vehicles = [
@@ -284,8 +284,8 @@ def vrppd_dict_to_instance_obj(instance_dict, instance_path=""):
         ]
     
     nodes = depots_o + pickup_nodes + dropoff_nodes + depots_d
-    from pprint import pprint
-    pprint(nodes)
+
+
     return Instance(
             vehicles,
             requests,
@@ -296,10 +296,8 @@ def vrppd_dict_to_instance_obj(instance_dict, instance_path=""):
         )
 # Adapted `cordeau_parser` to match the provided instance structure
 def vrppd_parser(instance_path):
-    
-    from pprint import pprint
+
     instance_dict = vrppd_instance_to_dict(instance_path)
-    pprint(instance_dict)
 
     return vrppd_dict_to_instance_obj(
         instance_dict,
