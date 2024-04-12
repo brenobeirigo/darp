@@ -76,6 +76,18 @@ def one_depot_one_customer_one_vehicle(request) -> dict[str, list]:
 
     return create_config_dict([depot], [pickup], [delivery], trucks)
 
+@pytest.fixture
+def one_depot_one_customer_one_vehicle_no_tw(request) -> dict[str, list]:
+    """Fixture for creating a simple VRPPD instance configuration."""
+    params = request.param
+    speed_km_h, capacity = params["speed"], params["capacity"]
+    depot = generate_node(1, 0, 0, 480, 10, 50)
+    pickup = generate_node(2, 20, 0, 480, 20, 50)
+    delivery = generate_node(3, -20, 0, 480, 30, 50)
+    trucks = generate_trucks_dict(1, capacity, 480, 50, speed_km_h=speed_km_h)
+
+    return create_config_dict([depot], [pickup], [delivery], trucks)
+
 
 @pytest.fixture
 def two_depots_one_customer_one_vehicle(request) -> dict[str, list]:
@@ -126,6 +138,28 @@ def two_diff_depots_two_customers_one_vehicle(request) -> dict[str, list]:
     pickup2 = generate_node(4, 20, 0, 500, 25, 50)
     delivery1 = generate_node(5, -20, 0, 500, 30, 50)
     delivery2 = generate_node(6, -20, 0, 500, 35, 50)
+    trucks = generate_trucks_dict(1, capacity, max_working_hours, 50, speed_km_h=speed_km_h)
+
+    return create_config_dict([depot1, depot2], [pickup1, pickup2], [delivery1, delivery2], trucks)
+
+@pytest.fixture
+def two_diff_depots_two_competing_customers_one_vehicle(request) -> dict[str, list]:
+    """Fixture for creating a simple VRPPD instance configuration."""
+    params = request.param
+    speed_km_h, capacity, max_working_hours = params["speed"], params["capacity"], params.get("max_working_hours", None)
+    
+    # Total distance is 40 (10, 10, 20)
+    depot1 = generate_node(1, 0, 0, 500, 10, 50)
+    pickup1 = generate_node(3, 20, 0, 500, 20, 50)
+    delivery1 = generate_node(5, -20, 0, 500, 30, 50)
+    
+    # Total distance is 50 (10, 20, 30)
+    depot2 = generate_node(2, 0, 0, 500, 50, 50)
+    pickup2 = generate_node(4, 20, 0, 500, 60, 50)
+    delivery2 = generate_node(6, -20, 0, 500, 80, 50)
+    
+    # [2, 4, 6, 3, 5, 8] = 100
+    #    10 + 20 + 50 + 10 + 10 = 100
     trucks = generate_trucks_dict(1, capacity, max_working_hours, 50, speed_km_h=speed_km_h)
 
     return create_config_dict([depot1, depot2], [pickup1, pickup2], [delivery1, delivery2], trucks)

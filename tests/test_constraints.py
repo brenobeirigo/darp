@@ -32,7 +32,7 @@ def test_pudo_order(one_depot_one_customer_one_vehicle, obj, expected_sol_route,
     model.set_obj(obj)
     solution_obj = model.solve()
 
-    if solution_obj:
+    if solution_obj.vehicle_routes:
         df = solution_obj.route_df(fn_dist=model.dist)
         actual_sol_obj = solution_obj.solver_stats.sol_objvalue
         print(df)
@@ -96,7 +96,7 @@ def test_solution_summary(one_depot_one_customer_one_vehicle, obj, expected_sol)
     model.set_obj(obj)
     solution_obj = model.solve()
 
-    if solution_obj:
+    if solution_obj.vehicle_routes:
         df = solution_obj.route_df(fn_dist=model.dist)
         actual_sol_obj = solution_obj.solver_stats.sol_objvalue
         print(df)
@@ -139,7 +139,7 @@ def test_if_flexible_depot_then_vehicle_departs_and_returns_from_closest(two_dep
     
     solution_obj = model.solve()
 
-    if solution_obj:
+    if solution_obj.vehicle_routes:
         df = solution_obj.route_df(fn_dist=model.dist)
         actual_sol_obj = solution_obj.solver_stats.sol_objvalue
         print(df)
@@ -172,10 +172,11 @@ def test_if_flexible_depot_then_vehicle_starts_and_ends_at_different_depots(two_
     model = Darp(instance)
     model.build()
     model.set_obj(obj)
+    model.save_lp(f"test_if_flexible_depot_then_vehicle_starts_and_ends_at_different_depot_{obj}_{str(expected_sol_route)}_{str(expected_sol_obj)}.lp")
     
     solution_obj = model.solve()
 
-    if solution_obj:
+    if solution_obj.vehicle_routes:
         df = solution_obj.route_df(fn_dist=model.dist)
         actual_sol_obj = solution_obj.solver_stats.sol_objvalue
         print(df)
@@ -213,7 +214,7 @@ def test_picks_2_delivers_2_unrestricted_tws_flex_true(two_diff_depots_two_custo
     
     solution_obj = model.solve()
 
-    if solution_obj:
+    if solution_obj.vehicle_routes:
         df = solution_obj.route_df(fn_dist=model.dist)
         actual_sol_obj = solution_obj.solver_stats.sol_objvalue
         print(df)
@@ -233,33 +234,76 @@ def test_picks_2_delivers_2_unrestricted_tws_flex_true(two_diff_depots_two_custo
     # delivery2 = generate_node(6, -20, 0, 500, 35, 50)
     # trucks = generate_trucks_dict(1, capacity, 480, 50, speed_km_h=speed_km_h)
     
+
+
+
 @pytest.mark.parametrize(
-    'two_diff_depots_two_customers_one_vehicle, obj, expected_sol_route, expected_sol_obj',
+    'one_depot_one_customer_one_vehicle_no_tw,allow_rejection, max_driving_time_h, obj, expected_sol_route, expected_sol_obj',
     [
-        ({"speed": 60, "capacity": 10}, darp.OBJ_MAX_PROFIT, None, None), # Fails capacity
-        ({"speed": 1, "capacity": 40}, darp.OBJ_MIN_TRAVEL_DISTANCE, None, None), # Fails speed
-        ({"speed": 60, "capacity": 40}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(2, 3, 4, 5, 6, 8)]), 40), # or set([(2, 4, 3, 5, 6, 8)]
-        ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(2, 3, 5, 4, 6, 8)]), 50),
-        ({"speed": 60, "capacity": 40}, darp.OBJ_MAX_PROFIT, set([(2, 4, 3, 5, 6, 8)]),
-         (50 * 20 * 2 - 0.05 * 0.2 * (15 + 5 + 10 + 5 + 5) - 20 / 60 * (500 - 460))),
+        #({"speed": 60, "capacity": 20}, False, 100/60, darp.OBJ_MIN_DRIVING_TIME, set([(2, 4, 6, 3, 5, 8)]), 100),
+        ({"speed": 60, "capacity": 20}, False, 40/60, darp.OBJ_MIN_DRIVING_TIME, set([(1,2,3,4)]), 40),
+        ({"speed": 60, "capacity": 20}, False, 39/60, darp.OBJ_MIN_DRIVING_TIME, None, None),
+        ({"speed": 60, "capacity": 20}, True, 39/60, darp.OBJ_MIN_DRIVING_TIME, set([(1,4)]), 0),
+        ({"speed": 60, "capacity": 20}, True, 40/60, darp.OBJ_MAX_PROFIT, set([(1,2,3,4)]), 986.2666666666665),
+        ({"speed": 60, "capacity": 20}, False, 40/60, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(1,2,3,4)]), 40),
     ],
-    indirect=["two_diff_depots_two_customers_one_vehicle"]
+    indirect=["one_depot_one_customer_one_vehicle_no_tw"]
 )
 
         
-def test_picks_2_delivers_2_unrestricted_tws_fixed_depots_flex_false(two_diff_depots_two_customers_one_vehicle, obj, expected_sol_route, expected_sol_obj):
+def test_allow_rejection_if_max_driving_time_is_short(one_depot_one_customer_one_vehicle_no_tw, allow_rejection, max_driving_time_h, obj, expected_sol_route, expected_sol_obj):
     """Test the order of pickup and delivery with a set of predefined conditions."""
-    instance_config = two_diff_depots_two_customers_one_vehicle
+    instance_config = one_depot_one_customer_one_vehicle_no_tw
     pprint(instance_config)
     instance = vrppd_dict_to_instance_obj(instance_config)
     model = Darp(instance)
-    model.build()
+    model.build(allow_rejection=allow_rejection, max_driving_time_h=max_driving_time_h)
     model.set_obj(obj)
     model.set_flex_depot(False)
-    
+    model.save_lp(f"{allow_rejection} - {max_driving_time_h}.lp")
     solution_obj = model.solve()
 
-    if solution_obj:
+    if solution_obj.vehicle_routes:
+        df = solution_obj.route_df(fn_dist=model.dist)
+        actual_sol_obj = solution_obj.solver_stats.sol_objvalue
+        print(df)
+        pprint(solution_obj.solver_stats)
+        pprint(solution_obj.routes_dict())
+        assert set(solution_obj.routes_dict().values()) == expected_sol_route
+        assert math.isclose(expected_sol_obj, actual_sol_obj, rel_tol=1e-6)
+    else:
+        assert expected_sol_route is None
+
+
+@pytest.mark.parametrize(
+    'two_diff_depots_two_competing_customers_one_vehicle,allow_rejection, max_driving_time_h, obj, expected_sol_route, expected_sol_obj',
+    [
+        #({"speed": 60, "capacity": 20}, False, 100/60, darp.OBJ_MIN_DRIVING_TIME, set([(2, 4, 6, 3, 5, 8)]), 100),
+        ({"speed": 60, "capacity": 100}, True, 40/60, darp.OBJ_MAX_PROFIT, set([(1,3,5,7)]), 986.2666666666665),
+        ({"speed": 60, "capacity": 100}, True, 39/60, darp.OBJ_MAX_PROFIT, set([(1,7)]), 0),
+        ({"speed": 60, "capacity": 100}, False, 39/60, darp.OBJ_MAX_PROFIT, None, None),
+        
+        #({"speed": 60, "capacity": 100}, False, 39/60, darp.OBJ_MIN_DRIVING_TIME, None, None),
+        #({"speed": 60, "capacity": 100}, True, 39/60, darp.OBJ_MIN_DRIVING_TIME, set([(1,4)]), 0),
+        #({"speed": 60, "capacity": 100}, True, 40/60, darp.OBJ_MAX_PROFIT, set([(1,2,3,4)]), 986.2666666666665),
+    ],
+    indirect=["two_diff_depots_two_competing_customers_one_vehicle"]
+)
+
+        
+def test_allow_rejection_2_customers_flex_true(two_diff_depots_two_competing_customers_one_vehicle, allow_rejection, max_driving_time_h, obj, expected_sol_route, expected_sol_obj):
+    """Test the order of pickup and delivery with a set of predefined conditions."""
+    instance_config = two_diff_depots_two_competing_customers_one_vehicle
+    pprint(instance_config)
+    instance = vrppd_dict_to_instance_obj(instance_config)
+    model = Darp(instance)
+    model.build(allow_rejection=allow_rejection, max_driving_time_h=max_driving_time_h)
+    model.set_obj(obj)
+    model.set_flex_depot(False)
+    model.save_lp(f"{allow_rejection} - {max_driving_time_h}.lp")
+    solution_obj = model.solve()
+
+    if solution_obj.vehicle_routes:
         df = solution_obj.route_df(fn_dist=model.dist)
         actual_sol_obj = solution_obj.solver_stats.sol_objvalue
         print(df)
