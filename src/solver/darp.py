@@ -7,14 +7,14 @@ import pathlib
 
 logger = logging.getLogger("__main__" + "." + __name__)
 
-OBJ_MIN_TRAVEL_DISTANCE = "obj_min_travel_distance"
-OBJ_MIN_DRIVING_TIME = "obj_min_driving_time"
-OBJ_MAX_PROFIT = "obj_max_profit"
-OBJ_MIN_PROFIT = "obj_min_profit"
-OBJ_MIN_TRAVEL_COST = "obj_min_travel_cost"
-OBJ_MAX_TRAVEL_COST = "obj_max_travel_cost"
-OBJ_MIN_TOTAL_LATENCY = "obj_min_total_latency"
-OBJ_MIN_FINAL_MAKESPAN = "obj_min_final_makespan"
+OBJ_MIN_TRAVEL_DISTANCE = "Min. Travel Distance"
+OBJ_MIN_DRIVING_TIME = "Min. Driving Time"
+OBJ_MAX_PROFIT = "Max. Profit"
+OBJ_MIN_PROFIT = "Min. Profit"
+OBJ_MIN_TRAVEL_COST = "Min. Travel Cost"
+OBJ_MAX_TRAVEL_COST = "Max. Travel Cost"
+OBJ_MIN_TOTAL_LATENCY = "Min. Total Latency"
+OBJ_MIN_FINAL_MAKESPAN = "Min. Final Makespan"
 CONSTR_FLEXIBLE_DEPOT = "constr_flexible_depot"
 CONSTR_FIXED_DEPOT = "constr_fixed_depot"
 MO_MIN_PROFIT_MIN_TRAVEL_COST = "mo_min_profit_min_travel_cost"
@@ -226,7 +226,7 @@ class Darp:
         elif obj == OBJ_MIN_DRIVING_TIME:
             self.set_objfunc_min_driving_time()
         else:
-            self.set_objfunc_min_distance_traveled()
+            raise ValueError("Invalid objective function specified.")
             
         return self
 
@@ -524,9 +524,9 @@ class Darp:
     def constr_max_driving_time(self, max_driving_time_h):
         
         for k in self.K:
-            constr_label = f"max_driving_time_vehicle_{k}"
+            constr_label = f"max_driving_time_vehicle_{k}_lt_{max_driving_time_h*60}min"
             self.solver.addConstr(
-                self.var_driving_time[k] <= max_driving_time_h,
+                self.var_driving_time[k] <= max_driving_time_h*60,
                 name=constr_label
             )
             
@@ -559,7 +559,7 @@ class Darp:
     
     def constr_every_request_is_served_exactly_once_or_rejected(self):
         for i in self.P:
-            constr_label = f"request_{i}_is_served_exactly_once"
+            constr_label = f"request_{i}_is_served_exactly_once_or_rejected"
 
             self.solver.addConstr(
             quicksum(
@@ -1210,8 +1210,11 @@ class Darp:
 
         fleet_solution:dict[int,SolutionVehicle] = dict()
         vehicle_routes_dict = self.get_vehicle_routes_dict()
+        serviced_set = set()
         for k in self.K:
             k_route_node_ids = vehicle_routes_dict[k]
+            serviced_vehicle = set(k_route_node_ids).intersection(set(n.id for n in self.instance.pickup_nodes))
+            serviced_set.update(serviced_vehicle)
             logger.debug(f"Route: {k} - {k_route_node_ids}")
 
             k_route_node_data = OrderedDict()
@@ -1301,6 +1304,7 @@ class Darp:
             total_transit=total_transit,
             avg_transit=total_transit / len(self.K),
             total_latency=total_latency,
+            n_serviced=len(serviced_set),
             final_makespan=max(self.var_end_working_time_vehicle[k].X for k in self.K)
         )
 
@@ -1429,4 +1433,4 @@ class Darp:
                     solver_stats=self.sol_,
                     vehicle_routes=None,
                 )
-            return None
+            return self.solution_

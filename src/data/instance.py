@@ -14,6 +14,23 @@ class InstanceConfig:
     time_horizon_min: int = None
     maximum_ride_time_min: int = None
     n_depots: int = 1
+    
+    
+    def to_df(self):
+        # Instance information
+        config_info = {
+            'Number of Depots': self.n_depots,
+            'Number of Customers': self.n_customers,
+            'Number of Vehicles': self.n_vehicles,
+            'Vehicle Capacity': self.vehicle_capacity,
+            'Maximum Ride Time (min)': self.maximum_ride_time_min,
+            'Maximum Driving Time (min)': self.maximum_driving_time_min,
+            'Time Horizon (min)': self.time_horizon_min,
+            
+        }
+        config_df = pd.DataFrame([config_info])
+        
+        return config_df
 
     @property
     def label(self):

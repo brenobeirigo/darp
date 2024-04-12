@@ -63,41 +63,74 @@ def build_run(
 
     df_config = pd.DataFrame([config])
     
-    if solution_obj is not None:
+    # Print solver statistics
+    logger.debug(solution_obj.solver_stats)
 
-        # # Save solution object
-        # dict_results[tuple(config.values())] = solution_obj
+    if solution_obj.vehicle_routes:
 
-        # Print solver statistics
-        logger.debug(solution_obj.solver_stats)
-
-        if solution_obj.vehicle_routes:
-
-            # Save route
-            df_routes = solution_obj.route_df(fn_dist=model.dist)
-            df_routes.to_csv(f"../reports/tables/routes/{test_label}.csv")
-            logger.debug(df_routes)
-        
-        else:
-            logger.debug("Only Best Bound found. Can't retrieve routes.")
-
-        # Add results
-        df_test = pd.concat(
-            [
-                df_config,
-                solution_obj.to_df(),
-                pd.DataFrame({"Max Runtime (min)":[time_limit_min]})], axis=1)
-
-        # Save summary statistics
-        # df_results.to_csv(results_filepath, index=False)
-        
+        # Save route
+        df_routes = solution_obj.route_df(fn_dist=model.dist)
+        df_routes.to_csv(f"../reports/tables/routes/{test_label}.csv")
+        logger.debug(df_routes)
+    
     else:
+        logger.debug("Optimal solution was not found. Can't retrieve routes.")
 
-        # dict_results[tuple(config.values())] = "Infeasible"
-        df_test = df_config
-        # df_results.to_csv(results_filepath, index=False)
-        print("Time out!")
+    # Add results
+    df_test = pd.concat(
+        [
+            df_config,
+            solution_obj.to_df(),
+            pd.DataFrame({"Max Runtime (min)":[time_limit_min]})], axis=1)
+
 
     df_test.insert(0, 'Date', pd.Timestamp.today())
     df_test.insert(0, 'Test ID', test_label)
+    
+    rename_dict = {
+        'Test ID': 'Test ID',
+        'Date': 'Date',
+        'scenario_id': 'Scenario ID',
+        'instance_filepath': 'Instance Filepath',
+        'is_flex_depot': 'Allow Flexible Depot Return',
+        'max_driving_time_h': 'Maximum Working Time (h)',
+        'allow_rejection': 'Allow Customer Rejection',
+        'obj': 'Objective',
+        'cost_per_min': 'Cost Per Min',
+        'cost_per_km': 'Cost Per Km',
+        'speed_km_h': 'Speed (km/h)',
+        'revenue_per_load_unit': 'Revenue Per Load Unit',
+        'instance_label': 'Instance Label',
+        'Number of Vehicles': 'Number Of Vehicles',
+        'Number of Customers': 'Number Of Customers',
+        'Time Horizon (min)': 'Time Horizon (min)',
+        'Vehicle Capacity': 'Vehicle Capacity',
+        'Maximum Ride Time (min)': 'Maximum Ride Time (min)',
+        'Maximum Driving Time (min)': 'Maximum Driving Time (min)',
+        'Number of Depots': 'Number Of Depots',
+        'Total Distance (km)': 'Total Distance (km)',
+        'Total Duration (min)': 'Total Duration (min)',
+        'Total Waiting (min)': 'Total Waiting (min)',
+        'Average Waiting (min)': 'Average Waiting (min)',
+        'Total Transit (min)': 'Total Transit (min)',
+        'Average Transit (min)': 'Average Transit (min)',
+        'Objective Value': 'Objective Value',
+        'CPU Time (sec)': 'Cpu Time (sec)',
+        'Number of Edges': 'Number Of Edges',
+        'Number of Nodes': 'Number Of Nodes',
+        'Number of Constraints': 'Number Of Constraints',
+        'Number of Variables': 'Number Of Variables',
+        'Number of Iterations': 'Number Of Iterations',
+        'Number of Solver Nodes': 'Number Of Solver Nodes',
+        'Solver Gap': 'Solver Gap',
+        'Objective Bound': 'Objective Bound',
+        'Work': 'Work',
+        'Max Runtime (min)': 'Max Runtime (min)'
+        }
+
+    
+   
+
+    df_test.rename(columns=rename_dict, inplace=True)
+    
     return df_test

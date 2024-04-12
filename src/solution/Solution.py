@@ -241,6 +241,7 @@ class SolutionSummary:
     total_transit: float
     avg_transit: float
     total_latency: float
+    n_serviced: int
     final_makespan: float
 
 
@@ -297,6 +298,7 @@ class Solution:
                 'Average Transit (min)': self.summary.avg_transit,
                 'Total Latency (min)': self.summary.total_latency,
                 'Final Makespan (min)': self.summary.final_makespan,
+                'N. of Serviced': self.summary.n_serviced,
             }])
         else:
             summary_df = pd.DataFrame([{
@@ -308,22 +310,40 @@ class Solution:
                 'Average Transit (min)': None,
                 'Total Latency (min)': None,
                 'Final Makespan (min)': None,
+                'N. of Serviced': None
             }])
         
-        # Create a DataFrame for the Solver Statistics
-        solver_df = pd.DataFrame([{
-            'Objective Value': self.solver_stats.sol_objvalue,
-            'CPU Time (sec)': self.solver_stats.sol_cputime,
-            'Number of Edges': self.solver_stats.graph_numedges,
-            'Number of Nodes': self.solver_stats.graph_numnodes,
-            'Number of Constraints': self.solver_stats.solver_numconstrs,
-            'Number of Variables': self.solver_stats.solver_numvars,
-            'Number of Iterations': self.solver_stats.solver_numiterations,
-            'Number of Solver Nodes': self.solver_stats.solver_numnodes,
-            'Solver Gap': self.solver_stats.solver_gap,
-            'Objective Bound': self.solver_stats.solver_objbound,
-            'Work': self.solver_stats.solver_work,
-        }])
+        if self.solver_stats:
+            # Create a DataFrame for the Solver Statistics
+            solver_df = pd.DataFrame([{
+                'Objective Value': self.solver_stats.sol_objvalue,
+                'CPU Time (sec)': self.solver_stats.sol_cputime,
+                'Number of Edges': self.solver_stats.graph_numedges,
+                'Number of Nodes': self.solver_stats.graph_numnodes,
+                'Number of Constraints': self.solver_stats.solver_numconstrs,
+                'Number of Variables': self.solver_stats.solver_numvars,
+                'Number of Iterations': self.solver_stats.solver_numiterations,
+                'Number of Solver Nodes': self.solver_stats.solver_numnodes,
+                'Solver Gap': self.solver_stats.solver_gap,
+                'Objective Bound': self.solver_stats.solver_objbound,
+                'Work': self.solver_stats.solver_work,
+            }])
+        else:
+            
+                 # Create a DataFrame for the Solver Statistics
+            solver_df = pd.DataFrame([{
+                'Objective Value': None,
+                'CPU Time (sec)': None,
+                'Number of Edges': None,
+                'Number of Nodes': None,
+                'Number of Constraints': None,
+                'Number of Variables': None,
+                'Number of Iterations': None,
+                'Number of Solver Nodes': None,
+                'Solver Gap': None,
+                'Objective Bound': None,
+                'Work': None,
+            }])
         
         # Combine all DataFrames into one, with a hierarchical column structure
         combined_df = pd.concat([

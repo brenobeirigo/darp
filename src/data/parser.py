@@ -231,6 +231,7 @@ def vrppd_dict_to_instance_obj(instance_dict, instance_path=""):
             earliest=depot_info["tw_start"],
             latest=depot_info["tw_end"],
             type=NodeType.D_DEPOT,
+            alias=depot_info["node_ID"]
         )
 
         depots_d.append(depot_d)
