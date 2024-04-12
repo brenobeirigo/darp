@@ -4,18 +4,69 @@ To ensure smooth operation within a Jupyter Notebook, we first set up our enviro
 
 ```{python}
 import sys
-sys.path.append("../")  # Adding parent directory to the paths
+ # Adding parent directory to the paths. This allows you to load
+ # packages in folders located one level before.
+sys.path.append("../")
 
 # IPython magic commands for auto-reloading modules
 %load_ext autoreload
 %autoreload 2
 ```
 
-## Step 2: Parse instance
+
+## Step 2: Parsing Instances
+
+The parsing process transforms an instance file of a certain type, which follows an specific convention to list information (e.g., locations, demands, fleet configuration, costs, etc.), into an instance object whose information can be formatted as an input to the solver.
+
+```{mermaid}
+graph LR;
+    A1("Instance Type 1") --> B1("Parser \nInstance Type 1");
+    A2("Instance Type 2") --> B2("Parser \nInstance Type 2");
+    AN("Instance Type N") --> BN("Parser \nInstance Type N");
+    B1 --> C(Instance\nObject);
+    B2 --> C;
+    BN --> C;
+    C --> D(Solver)
+    D --> E(Solution)
+```
+
+Here is how an instance class can be constructed:
+
+```python
+class Instance:
+    def __init__(
+        self,
+        vehicles: list[Vehicle],
+        requests: list[Request],
+        nodes: list[NodeInfo],
+        config: InstanceConfig,
+        instance_filepath: str,
+        instance_parser: str,
+    ):
+
+@dataclass
+class InstanceConfig:
+    n_vehicles: int
+    n_customers: int
+    vehicle_capacity: int
+    maximum_driving_time_min: int = None
+    time_horizon_min: int = None
+    maximum_ride_time_min: int = None
+    n_depots: int = 1
+```
+
+Notice that `InstanceConfig` is a dataclass. Dataclasses are a simpler way of representing immutable information.
+
+The rest of the instance data is also parsed into lists of  request, vehicles, and node objects.
+
+Below, an example of how instances for the *multi-depot vehicle routing problem with pick and deliviries* (MDVRPPD) are parsed.
 
 ```{python}
-import src.data.parser as parser
 from pathlib import Path
+from pprint import pprint
+
+# Parser to load and parse DARP instance data
+import src.data.parser as parser
 
 folder_path = Path("../data/raw/mdvrppdtw/")
 
@@ -25,35 +76,123 @@ instances_files = [
     "vrppd_33-3-15.txt",
 ]
 
+# The instances are saved into a dictionary with
+# keys corresponding to the instance name
 instances = {}
-for instance_file in instances_files:
-    instance_filepath = folder_path / instance_file
-    print(f"## Processing instance at '{instance_filepath}'...")
 
-    # Create an Instance object
+for instance_file in instances_files:
+
+    # Create file path
+    instance_filepath = folder_path / instance_file
+    print(f"\n## Processing instance at '{instance_filepath}'")
+
+    # Create an Instance object. The parser, is a function
+    # created to read files of this instance type. When working
+    # with instances from different sources, you build a parser
+    # for each source so instance files are read correctly.
     instance_obj = parser.parse_instance_from_filepath(
         instance_filepath,
         instance_parser=parser.PARSER_TYPE_MVRPPDTW
     )
-    print(instance_obj)
-    instances[instance_file[:-4]] = instance_obj
 
+    instances[instance_file[:-4]] = instance_obj
 ```
 
-DataFrame view of the instance:
+## Step 3: Visualizing instances (sanity check)
+
+With an instance object, you can manipulate the information in different ways.
+
+For example, consider the instance `vrppd_13-3-5`:
+
+```
+/* Cardinality of the grid */
+13
+/* Cardinality of pick-up locations */
+5
+/* Cardinality of delivery locations */
+5
+/* Cardinality of depots */
+3
+/* Total number of trucks */
+1	
+/* Capacity of trucks */
+200
+/* Maximum working hours */
+8
+/* Revenue of selling an order [e/kg] */
+50
+/* Depots */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */
+1	40	50	0	0	8
+2	27	62	0	0	8
+3	73	17	0	0	8
+/* Pick up locations */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */			
+4	25	85	20	3	7
+5	20	85	20	3	7
+6	15	75	20	2	6
+7	15	80	10	1	5
+8	10	35	20	1	5
+/* Delivery locations */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */				
+9	22	75	-20	4	8
+10	22	85	-20	4	8
+11	20	80	-20	3	7
+12	18	75	-10	2	6
+13	5	35	-20	2	6
+```
+
+Below, this instance is shown using different structures to facility modeling and sanity checks.
+
+### DataFrame of node data
+
+DataFrame view of the instance `vrppd_13-3-5`. Notice that nodes have aliases to facilitate reading. The alias of dropoff node corresponding to a pickup node labelled `N` is `N*`. This way, pickup and dropoff pairs can be determined easier.
+
+Additionally, to facilitate modeling, the depot nodes are replicated.
+This way, we wave two types of depots: origin (`O_DEPOT`) and destination (`D_DEPOT`).
+Doing so guarantees that time-related constraints are easier to model.
+For example, every node is associated with a single arrival time.
+By duplicating depots, we guarantee that the arrival time at an origin depot corresponding to departure time of this depot, whereas the arrival time at the corresponding destination depot corresonds to the arrival time at the depot after the journey has completed.
 
 ```{python}
+# | tbl-cap: To facilitate modeling, depots are replicated to differentiate between origin (`O_DEPOT`) and destination (`D_DEPOT`) depots. All vehicles start from an origin depot and finish at a destination depot.
 
 # Displaying the instance data as a DataFrame for verification
 df_instance = instances["vrppd_13-3-5"].nodeset_df
 df_instance
 ```
 
-Node distribution of instances:
+
+### Textual representation 
+
+The instance object can be print in different forms.
+
+For example, here is a print of the `InstanceConfig` object:
 
 ```{python}
+pprint(instances["vrppd_13-3-5"].config)
+```
+
+And here a print of the `Instance` object:
+
+```{python}
+print(instances["vrppd_13-3-5"])
+```
+
+Such customized prints can be done by modifying the dunder method `__str__` of the objects `Instance` and `InstanceConfig`.
+
+### Plot of node data
+
+To check if instances are read correctly, plot them.
+
+```{python}
+# | fig-cap: Node distribution of the instances.
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+# Destination depots are filtered since they are replicas
+# of origin depots
+df = instance_obj.nodeset_df[instance_obj.nodeset_df["node_type"]!='D_DEPOT']
 
 # Create subplots for each instance
 fig, axs = plt.subplots(
@@ -67,451 +206,104 @@ for i, (instance_file, instance_obj) in enumerate(instances.items()):
     subfig_title = f"{instance_file}\n({instance_obj.config.label})"
     ax.set_title(subfig_title)
     sns.scatterplot(
-        data=instance_obj.nodeset_df,
+        data=df,
         x="x",
         y="y",
         hue="node_type",
+        s=150,
         ax=ax)
+    
+    # Add text annotations for the nodes
+    for index, row in df.iterrows():
+        ax.text(
+            row['x'], row['y'],
+            str(row['alias']),
+            fontsize=7,
+            ha='center',
+            va='center',
+            color='black',
+            fontfamily="Consolas",
+        )
 ```
 
-### Importing Modules
 
-Now, let's import the required functions and classes from our `src` package:
+## Step 4: Reading the scenarios
+
+The scenario settings are data saved as `.json`, in folder `{python} folder_path`.
+
+A scenario holds information about the experiment including:
+
+- Whether to consider flexible depots (i.e., vehicles do not need to leave and return to same depot.).
+- Maximum driving time for trucks is taken into account.
+- Customers can be rejected.
+- The objective function.
+- The instances considered in the scenario.
+- The description (e.g., the question statement.).
+
+These scenarios are read into `Scenario` objects and stored in a dictionary.
 
 ```{python}
-from time import time
-import matplotlib.pyplot as plt
 from pprint import pprint
+from src.data.scenario import Scenario
 
-# Parser to load and parse DARP instance data
-from src.data.parser import parse_instance_from_filepath
-
-# Darp class for building and solving the DARP model
-from src.solver.darp import Darp
-
-# Function for plotting vehicle routes
-from src.visualization.route import plot_vehicle_route
+scenarios = Scenario.read(folder_path / "scenarios.json")
+pprint(scenarios)
 ```
 
-```{python}
+## Step 5: Run scenarios and save results
 
-# import src.solver.darp as darp
-# # Initializing the DARP model
-# t_start = time()
-# # instance_obj = instances["vrppd_13-3-5"] 
-# instance_obj = instances["vrppd_23-3-10"]
-# # instance_obj = instances["vrppd_33-3-15"]
-# print(instance_obj)
-# model = Darp(instance_obj)
-# print("Time to initialize the model:", time() - t_start)
-
-# # Building the model with constraints, variables, and objective function
-# t_start = time()
-# model.build()
-# model.set_time_limit_min(5)
-# model.set_obj(darp.OBJ_MIN_TRAVEL_DISTANCE)
-
-# print("Time to build the model:", time() - t_start)
-
-# # Solving the model to minimize costs
-# t_start = time()
-# solution_obj = model.solve()
-# print("Time to solve the model:", time() - t_start)
-
-# # Detailed solver-specific information
-# pprint(solution_obj.solver_stats)
-
-# df = solution_obj.route_df(fn_dist=model.dist)
-
-# df
-```
-
-Summary statistics:
+We loop over all the scenarios and save the main KPIs.
 
 ```{python}
-# import pandas as pd
-# pd.concat([solution_obj.to_df(), solution_obj.to_df(), pd.DataFrame()])
-```
-
-```{python}
-
-
-
-
-
-```
-
-```{python}
-# Creating a 2x2 grid for plotting routes
-# fig, axs = plt.subplots(1, instance_obj.config.n_vehicles, figsize=(5, 5))
-
-
-# # Iterating through vehicle routes for visualization
-# for vehicle_id, vehicle_sol in solution_obj.vehicle_routes.items():
-#     df_vehicle_solution = df[df["vehicle_id"] == vehicle_id].copy()
-#     print(df_vehicle_solution)
-#     title_plot = f"Route vehicle {vehicle_id} ({vehicle_sol.summary()})"
-#     plot_vehicle_route(axs, df_vehicle_solution, title=title_plot, coord_box=[0, 100, 0, 100])
-
-# plt.tight_layout()
-```
-
-Test utils:
-
-```{python}
-def generate_scenario_values(scenario):
-    for instance_label in scenario["instances"]:
-        for is_flex_depot in scenario["is_flex_depot"]:
-            for max_driving_time_h in scenario["max_driving_time_h"]:
-                for allow_rejection in scenario["allow_rejection"]:
-                    for obj in scenario["obj"]:
-                        yield {
-                            "scenario_id": scenario["scenario_id"],
-                            "instance_label": instance_label,
-                            "is_flex_depot": is_flex_depot,
-                            "max_driving_time_h": max_driving_time_h,
-                            "allow_rejection": allow_rejection,
-                            "obj": obj
-                        }
-
-def generate_test_label(test_dict, max_time):
-    instance_label = test_dict["instance_label"]
-    is_flex_depot = test_dict["is_flex_depot"]
-    obj = test_dict["obj"]
-    max_driving_time_h = test_dict["max_driving_time_h"]
-    allow_rejection = test_dict["allow_rejection"]
-    scenario_id = test_dict["scenario_id"]
-
-    test_label = (
-        f"scenario_id={scenario_id}_"
-        f"instance_label={instance_label}_"
-        f"flex={is_flex_depot}_"
-        f"obj={obj}_"
-        f"allow_rejection={allow_rejection}_"
-        f"max_driving_time_h={max_driving_time_h}_"
-        f"max_runtime_min={max_time}"
-    )
-    return test_label
-```
-
-Test cases:
-
-```{python}
-
-```
-
-```{python}
-import src.solver.darp as darp
-import pandas as pd
 import os
-from pprint import pprint
 import numpy as np
+import pandas as pd
+from pprint import pprint
 
-
-m1 = dict(
-    scenario_id="M1",
-    instances=[
-        "vrppd_13-3-5",
-        "vrppd_23-3-10",
-        "vrppd_33-3-15"
-    ],
-    is_flex_depot=[
-        False,
-    ],
-    max_driving_time_h=[
-        None
-    ],
-    allow_rejection=[
-        False
-    ],
-    obj=[
-        darp.OBJ_MAX_PROFIT,
-    ],
-)
-
-m2 = dict(
-    scenario_id="M2",
-    instances=[
-        "vrppd_13-3-5",
-        "vrppd_23-3-10",
-        "vrppd_33-3-15"
-    ],
-    is_flex_depot=[
-        True,
-    ],
-    max_driving_time_h=[
-        None
-    ],
-    allow_rejection=[
-        False
-    ],
-    obj=[
-        darp.OBJ_MAX_PROFIT,
-    ],
-)
-
-m3 = dict(
-    scenario_id="M3",
-    instances=[
-        "vrppd_13-3-5",
-        "vrppd_23-3-10",
-        "vrppd_33-3-15"
-    ],
-    is_flex_depot=[
-        False,
-    ],
-    max_driving_time_h=[
-        None
-    ],
-    allow_rejection=[
-        False
-    ],
-    obj=[
-        darp.OBJ_MIN_FINAL_MAKESPAN,
-    ],
-)
-
-m4 = dict(
-    scenario_id="M4",
-    instances=[
-        "vrppd_13-3-5",
-        "vrppd_23-3-10",
-        "vrppd_33-3-15"
-    ],
-    is_flex_depot=[
-        False,
-    ],
-    max_driving_time_h=[
-        None
-    ],
-    allow_rejection=[
-        False
-    ],
-    obj=[
-        darp.OBJ_MIN_TOTAL_LATENCY,
-    ],
-)
-
-m5 = dict(
-    scenario_id="M5",
-    instances=[
-        "vrppd_13-3-5",
-        "vrppd_23-3-10",
-        "vrppd_33-3-15"
-    ],
-    is_flex_depot=[
-        True,
-    ],
-    max_driving_time_h=[
-        5,6,7
-    ],
-    allow_rejection=[
-        False, True
-    ],
-    obj=[
-        darp.OBJ_MAX_PROFIT,
-    ],
-)
-
-m6 = dict(
-    scenario_id="M6",
-    instances=[
-        "vrppd_13-3-5",
-        "vrppd_23-3-10",
-        "vrppd_33-3-15"
-    ],
-    is_flex_depot=[
-        True,
-    ],
-    max_driving_time_h=[
-        None
-    ],
-    allow_rejection=[
-        True
-    ],
-    obj=[
-        darp.OBJ_MAX_PROFIT,
-        darp.OBJ_MIN_TRAVEL_COST,
-    ],
-)
+import src.solution.build as build
 
 # Aggregated results
-results_filepath = "../reports/tables/results_scenarios.csv"
+results_filepath = "../reports/tables/results_scenarios_m1-m6_10minutes.csv"
 
+# Load data if exists
 if os.path.exists(results_filepath):
-    df_results = pd.read_csv(results_filepath, index_col=False)
+    df_results = pd.read_csv(results_filepath,index_col=False)
 else:
     df_results = pd.DataFrame()
 
 test_count = 0
 time_limit_min = 10
-dict_results = {}
-for scenario in [m1,m2,m3,m4,m5,m6]:
-    for config in generate_scenario_values(scenario):
+
+for k, scenario in scenarios.items():
+    
+    for config in scenario.generate_scenario_values():
         
         test_count += 1
         print("#### Test", test_count)
 
-        test_label = generate_test_label(config, time_limit_min)
-        print(f"### Running test: {test_label}")
+        test_label = config.get_test_label(time_limit_min)
+
+        if test_label in df_results["Test ID"].values:
+            print(f"### Test {test_label} already executed.")
+            continue
+
+
         pprint(config)
 
-        print(f"### Instance:")
-        instance_obj = instances[config["instance_label"]]
-        pprint(instance_obj.config)
-
-            
-        ## Build model
-        model = Darp(instance_obj)
-        model.build(
-            max_driving_time_h=config["max_driving_time_h"],
-            allow_rejection=config["allow_rejection"]
+        df_test = build.build_run(
+            config,
+            time_limit_min=time_limit_min,
+            lp_filepath="../reports/lps",
+            log_filepath="../reports/logs",
             )
 
-        # Configure model
-        model.set_flex_depot(config["is_flex_depot"])
-        model.set_obj(config["obj"])
 
-        # Configure logs
-        model.save_lp(f"../reports/lps/{test_label}.lp")
-        model.save_log(f"../reports/logs/{test_label}.log")
+        pprint(df_test.round(2).to_dict(orient='records')[0])
 
-        model.set_time_limit_min(time_limit_min)
-
-        # Run solver
-        solution_obj = model.solve()
-
-        df_config = pd.DataFrame([config])
+        # Save test results in DataFrame
+        df_results = pd.concat([df_results, df_test])
         
-        if solution_obj:
-
-            # Save solution object
-            dict_results[tuple(config.values())] = solution_obj
-
-            # Print solver statistics
-            pprint(solution_obj.solver_stats)
-
-            # Save route
-            df_routes = solution_obj.route_df(fn_dist=model.dist)
-            df_routes.to_csv(f"../reports/tables/routes/{test_label}.csv")
-            print(df_routes)
-
-            # Add results
-            df_test = pd.concat([df_config, solution_obj.to_df(), pd.DataFrame({"Max Runtime Min":[time_limit_min]})], axis=1)
-            df_results = pd.concat([df_results, df_test])
-
-            # Save summary statistics
-            df_results.to_csv(results_filepath, index=False)
-            
-        else:
-
-            dict_results[tuple(config.values())] = "Infeasible"
-            df_results = pd.concat([df_results, df_config])
-            df_results.to_csv(results_filepath, index=False)
-            print("Time out!")
-
-        
-
-```
-
-```{python}
-
-
-                    test_label = f"{instance_label}_flex={is_flex_depot}_obj={obj}_allow_rejection={allow_rejection}_max_driving_time_h={max_driving_time_h}"
-                    
-                    print(f"Running test: {test_label}")
-                    # Rest of the code...
-
-dict_results = {}
-for instance_label, instance_obj in instances.items():
-    for is_flex_depot in [True, False]:
-        for obj in [
-            darp.OBJ_MIN_TRAVEL_DISTANCE,
-            darp.OBJ_MAX_PROFIT,
-            darp.OBJ_MIN_TRAVEL_COST,
-            darp.OBJ_MIN_TOTAL_LATENCY,
-            darp.OBJ_MIN_FINAL_MAKESPAN]:
-
-            
-            test_label = f"{instance_label}_flex={is_flex_depot}_obj={obj}"
-            print(f"Running test: {test_label}")
-            print(f"Instance:")
-            pprint(instance_obj)
-
-            query = df_results.loc[
-                (df_results["instance_label"] == instance_label)
-                & (df_results["is_flex_depot"] == is_flex_depot)
-                & (df_results["obj"] == obj)]
-            
-            # Check if test was feasible
-            if len(query)>0 and not np.isnan(query["Objective Value"].values[0]):
-                print("Test already executed!")
-                continue
-
-            config = {
-                "instance_label": instance_label,
-                "is_flex_depot": is_flex_depot,
-                "obj": obj
-            }
-
-            df_config = pd.DataFrame([config])
-            
-            ## Build model
-            model = Darp(instance_obj)
-            model.build()
-
-            # Configure model
-            model.set_flex_depot(is_flex_depot)
-            model.set_obj(obj)
-
-            # Configure logs
-            model.save_lp(f"../reports/lps/{test_label}.lp")
-            model.save_log(f"../reports/logs/{test_label}.log")
-
-            # model.set_time_limit_min(20)
-
-            # Run solver
-            solution_obj = model.solve()
-            
-            if solution_obj:
-
-                # Save solution object
-                dict_results[(instance_label, is_flex_depot, obj)] = solution_obj
-
-                # Print solver statistics
-                pprint(solution_obj.solver_stats)
-
-                # Save route
-                df_routes = solution_obj.route_df(fn_dist=model.dist)
-                df_routes.to_csv(f"../reports/tables/routes/{test_label}.csv")
-                print(df_routes)
-
-                # Add results
-                df_test = pd.concat([df_config, solution_obj.to_df()], axis=1)
-                df_results = pd.concat([df_results, df_test])
-
-                # Save summary statistics
-                df_results.to_csv(results_filepath)
-                
-            else:
-
-                dict_results[(instance_label, is_flex_depot, obj)] = "Infeasible"
-                df_results = pd.concat([df_results, df_config])
-                print("Time out!")
-
+        # Date helps to track the tests
+        df_results.to_csv(results_filepath, index=False)
     
-```
-
-```{python}
-import pandas as pd
-import numpy as np
-df = pd.read_csv("../reports/tables/results_bk.csv")
-
-value = df.loc[(df["instance_label"] == "vrppd_33-3-15") & (df["is_flex_depot"] == False) & (df["obj"] == "obj_profit")]["Objective Value"].values[0]
-np.isnan(value)
-
-```
-
-```{python}
-len(df.loc[(df["instance_label"] == "vrppd_35-3-15") & (df["is_flex_depot"] == False) & (df["obj"] == "obj_profit")]["Objective Value"])
 ```

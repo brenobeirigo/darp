@@ -50,6 +50,7 @@ The project has several key directories:
   - **`solution`**: Code related to processing or interpreting solutions.
   - **`solver`**: Includes `darp.py`, the implementation of the DARP solver.
   - **`visualization`**: Code dedicated to data visualization (e.g., plot routes).
+  - **`tests`**: Unit tests to automatically verify model features.
 
 ### Importing Modules
 
@@ -64,7 +65,7 @@ from pprint import pprint
 from src.data.parser import parse_instance_from_filepath
 
 # Darp class for building and solving the DARP model
-from src.solver.darp import Darp
+import src.solver.darp as darp
 
 # Function for plotting vehicle routes
 from src.visualization.route import plot_vehicle_route
@@ -194,7 +195,19 @@ Spread of the nodes colored by type (pickup, dropoff, or depot):
 
 ```{python}
 import seaborn as sns
-sns.scatterplot(df_instance, x="x", y="y", hue="node_type")
+
+# Destination depots are filtered for plotting 
+# since they are replicas of origin depots
+df = df_instance.copy()
+df = df[
+  df["node_type"]!='D_DEPOT'
+]
+
+ax = sns.scatterplot(df, x="x", y="y", hue="node_type", s=150)
+
+# Add text annotations for the nodes
+for index, row in df.iterrows():
+    ax.text(row['x'], row['y'], str(row['alias']), fontsize=6, ha='center', va='center', color='black')
 ```
 
 ## Step 4: Model Preparation and Building
@@ -204,12 +217,13 @@ The DARP model is initialized, and its components are set up:
 ```{python}
 # Initializing the DARP model
 t_start = time()
-model = Darp(instance_obj)
+model = darp.Darp(instance_obj)
 print("Time to initialize the model:", time() - t_start)
 
 # Building the model with constraints, variables, and objective function
 t_start = time()
 model.build()
+model.set_obj(darp.OBJ_MIN_TRAVEL_DISTANCE)
 print("Time to build the model:", time() - t_start)
 ```
 
