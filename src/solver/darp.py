@@ -468,8 +468,13 @@ class Darp:
         
         obj_expr = []
         for k in self.K:
-            total_cost_per_min = (self.K_params[k]["cost_per_min"] * self.var_driving_time[k])
+            total_cost_per_min = (
+                self.K_params[k]["cost_per_min"] 
+                * self.var_driving_time[k]
+            )
+            
             logger.debug(f"obj_driving_{k}_cost_per_min={self.K_params[k]['cost_per_min']:06.2f}")
+
             obj_expr.append(-total_cost_per_min)
 
             for i, j in self.A:
@@ -484,10 +489,6 @@ class Darp:
                     f"{self.dist(i, j) * self.K_params[k]['cost_per_km']:06.2f}"
                 )
                 obj_expr.append(-total_travel_cost_per_km)
-                
-                
-                
-
                 
                 revenue_load = 0
                 if i in self.P:
