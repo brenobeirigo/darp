@@ -16,9 +16,11 @@ for p in plots:
     df = pd.read_csv(f"reports/tables/routes/{p}")
     vehicles = df["vehicle_id"].unique()
 
-    fig, axs = plt.subplots(1, len(vehicles), figsize=(5*len(vehicles), 5))  # Creates a 2x2 grid of Axes objects
-    if len(vehicles) > 1:
-        axs = axs.flatten()
+    fig, axs = plt.subplots(1, figsize=(10, 10))  # Creates a single Axes object with a square figure size
+    axs.set_aspect('equal')  # Set the aspect ratio of the plot to be equal
+    #fig, axs = plt.subplots(1, len(vehicles), figsize=(5*len(vehicles), 5))  # Creates a 2x2 grid of Axes objects
+    #if len(vehicles) > 1:
+    #    axs = axs.flatten()
 
     for i, vehicle_id in enumerate(vehicles):
         df_vehicle_solution = df[df["vehicle_id"] == vehicle_id].copy()
@@ -35,18 +37,16 @@ for p in plots:
 
         box = np.array(
             [
-            min(df_vehicle_solution["x"])-10,
-            max(df_vehicle_solution["x"])+10,
-            min(df_vehicle_solution["y"])-10,
-            max(df_vehicle_solution["y"])+10])
+            -10,
+            110,
+            -10,
+            110,
+            ])
         
         print(df_vehicle_solution)
-        if len(vehicles) > 1:
-            ax = axs[i]
-        else:
-            ax = axs
-        title_plot = f"{test_case}\nRoute vehicle {vehicle_id}\ntw=[{depot1/60:3.2f},{depot2/60:3.2f}] / dist={dist:6.2f} / lat={latency/60:3.2f}"# ({vehicle_sol.summary()})"
-        plot_vehicle_route(ax, df_vehicle_solution, title=title_plot, coord_box=tuple(box), route_color=color[vehicle_id])
         
-    plt.savefig(f"{folder_fig}/{test_case}.png", bbox_inches='tight')
+        #title_plot = f"Route vehicle {vehicle_id}\ntw=[{depot1/60:3.2f},{depot2/60:3.2f}] / dist={dist:6.2f} / lat={latency/60:3.2f}"# ({vehicle_sol.summary()})"
+        plot_vehicle_route(axs, df_vehicle_solution, coord_box=tuple(box), route_color=color[vehicle_id])
+        
+    plt.savefig(f"{folder_fig}/{test_case}.svg", bbox_inches='tight')
     

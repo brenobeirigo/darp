@@ -45,20 +45,50 @@ def plot_arrows(
     Plot arrows between nodes using DataFrame.
     """
     for idx in range(len(df) - 1):
-        p = df.iloc[idx]
-        d = df.iloc[idx + 1]
-        arrow = patches.FancyArrowPatch(
-            p[["x", "y"]].to_list(),
-            np.array(d[["x", "y"]].to_list())*0.97,
-            edgecolor=route_color,
-            facecolor=route_color,
-            arrowstyle=arrowstyle,
-            linestyle=linestyle,
-            linewidth=linewidth,
-            mutation_scale=10,
-        )
+        p = np.array(df.iloc[idx][["x", "y"]].to_list())
+        d = np.array(df.iloc[idx + 1][["x", "y"]].to_list())
         
-        axis.add_artist(arrow)
+        # Circle radius
+        radius = 0.8  # Half of your diameter
+
+        # Determine if the line is horizontal or vertical
+        horizontal_line = p[1] == d[1]
+        vertical_line = p[0] == d[0]
+
+        if horizontal_line:
+            if d[0] > p[0]:
+                p_adjusted = [p[0] + radius, p[1]]
+                d_adjusted = [d[0] - radius, d[1]]
+            else:
+                p_adjusted = [p[0] - radius, p[1]]
+                d_adjusted = [d[0] + radius, d[1]]
+        elif vertical_line:
+            if d[1] > p[1]:
+                p_adjusted = [p[0], p[1] + radius]
+                d_adjusted = [d[0], d[1] - radius]
+            else:
+                p_adjusted = [p[0], p[1] - radius]
+                d_adjusted = [d[0], d[1] + radius]
+        else:
+            # For non-strictly horizontal/vertical lines, adjust as before
+            direction = d - p
+            norm_direction = direction / np.linalg.norm(direction)
+            p_adjusted = p + norm_direction * radius
+            d_adjusted = d - norm_direction * radius
+        
+        if not np.array_equal(p, d):
+            arrow = patches.FancyArrowPatch(
+                p_adjusted,
+                d_adjusted,
+                edgecolor=route_color,
+                facecolor=route_color,
+                arrowstyle=arrowstyle,
+                linestyle=linestyle,
+                linewidth=linewidth,
+                mutation_scale=10,
+            )
+            
+            axis.add_artist(arrow)
 
 
 #### Plot Line Collection
@@ -256,9 +286,9 @@ def plot_vehicle_route(
         plot_line_collection(axis, df, route_color, linestyle, linewidth)
 
     if show_nodes:
-        plot_nodes(axis, df[df["node_type"]!=NodeType.D_DEPOT.name], size_node = size_node)
+        plot_nodes(axis, df, size_node = size_node)
     if show_node_labels:
-        plot_node_labels(axis, df[df["node_type"]!=NodeType.D_DEPOT.name], ignore_depot=False, fontsize=fontsize)
+        plot_node_labels(axis, df, ignore_depot=False, fontsize=fontsize)
 
     axis.set_xlabel(x_title)
     axis.set_ylabel(y_title)
