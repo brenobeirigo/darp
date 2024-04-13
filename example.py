@@ -2,9 +2,9 @@ from src.data import parser
 from pathlib import Path
 import src.solver.darp as darp
 
-# import logging
+import logging
 
-# logging.basicConfig(level=logging.DEBUG, 
+logging.basicConfig(level=logging.DEBUG)#, 
 #                     # Add the following line to set the logging level specifically for your project
 #                     # filename='/c:/Users/AlvesBeirigoB/OneDrive/pkm/PARA/Area/dev/darp/example.py',
 #                     # level=logging.DEBUG,
@@ -16,8 +16,8 @@ if __name__ == "__main__":
 
     instances_files = [
         "vrppd_13-3-5.txt",
-        "vrppd_23-3-10.txt",
-        "vrppd_33-3-15.txt",
+        # "vrppd_23-3-10.txt",
+        # "vrppd_33-3-15.txt",
     ]
 
 
@@ -38,61 +38,59 @@ if __name__ == "__main__":
     # df_instance = instances["vrppd_13-3-5"].nodeset_df
     # df_instance
 
-    import seaborn as sns
-    import matplotlib.pyplot as plt
+    # import seaborn as sns
+    # import matplotlib.pyplot as plt
 
-    # Create subplots for each instance
-    fig, axs = plt.subplots(
-        1,
-        len(instances),
-        figsize=(5 * len(instances), 5))
+    # # Create subplots for each instance
+    # fig, axs = plt.subplots(
+    #     1,
+    #     len(instances),
+    #     figsize=(5 * len(instances), 5))
 
-    # Iterate over instances and plot scatter plots
-    for i, (instance_file, instance_obj) in enumerate(instances.items()):
-        ax = axs[i]
-        subfig_title = f"{instance_file}\n({instance_obj.config.label})"
-        ax.set_title(subfig_title)
-        sns.scatterplot(
-            data=instance_obj.nodeset_df,
-            x="x",
-            y="y",
-            hue="node_type",
-            ax=ax)
+    # # Iterate over instances and plot scatter plots
+    # for i, (instance_file, instance_obj) in enumerate(instances.items()):
+    #     ax = axs[i]
+    #     subfig_title = f"{instance_file}\n({instance_obj.config.label})"
+    #     ax.set_title(subfig_title)
+    #     sns.scatterplot(
+    #         data=instance_obj.nodeset_df,
+    #         x="x",
+    #         y="y",
+    #         hue="node_type",
+    #         ax=ax)
 
 
     from time import time
     import matplotlib.pyplot as plt
     from pprint import pprint
 
-    # Parser to load and parse DARP instance data
-    from src.data.parser import parse_instance_from_filepath
-
     # Darp class for building and solving the DARP model
     from src.solver.darp import Darp
 
-    # Function for plotting vehicle routes
-    from src.visualization.route import plot_vehicle_route
-
-
     # Initializing the DARP model
     t_start = time()
-    # instance_obj = instances["vrppd_13-3-5"] 
-    instance_obj = instances["vrppd_23-3-10"] 
+    instance_obj = instances["vrppd_13-3-5"] 
+    # instance_obj = instances["vrppd_23-3-10"] 
     # instance_obj = instances["vrppd_33-3-15"] 
     model = Darp(instance_obj)
+    print("## Vehicle params")
+    pprint(model.K_params)
     print("Time to initialize the model:", time() - t_start)
 
     # Building the model with constraints, variables, and objective function
     t_start = time()
     model.build()
-    model.save_lp("./reports/lps/model_example.lp")
-    model.save_log("./reports/logs/model_example.log")
-    model.set_time_limit_min(0.05)
+    # model.save_lp("model_example.lp")
+    # model.save_log("model_example.log")
+    model.set_time_limit_min(10)
+    
     print("Time to build the model:", time() - t_start)
 
     # Solving the model to minimize costs
     t_start = time()
-    model.set_obj(darp.OBJ_MIN_TRAVEL_DISTANCE)
+    model.set_obj(darp.OBJ_MAX_PROFIT)
+    # model.set_obj(darp.OBJ_MAX_PROFIT_REV_MINUS_COSTS)
+    
     solution_obj = model.solve()
     print("Time to solve the model:", time() - t_start)
 
@@ -110,11 +108,11 @@ if __name__ == "__main__":
     fig, axs = plt.subplots(1, figsize=(10, 10))
 
 
-    # Iterating through vehicle routes for visualization
-    for vehicle_id, vehicle_sol in solution_obj.vehicle_routes.items():
-        df_vehicle_solution = df[df["vehicle_id"] == vehicle_id].copy()
-        print(df_vehicle_solution)
-        title_plot = f"Route vehicle {vehicle_id} ({vehicle_sol.summary()})"
-        plot_vehicle_route(None, df_vehicle_solution, title=title_plot)
+    # # Iterating through vehicle routes for visualization
+    # for vehicle_id, vehicle_sol in solution_obj.vehicle_routes.items():
+    #     df_vehicle_solution = df[df["vehicle_id"] == vehicle_id].copy()
+    #     print(df_vehicle_solution)
+    #     title_plot = f"Route vehicle {vehicle_id} ({vehicle_sol.summary()})"
+    #     plot_vehicle_route(None, df_vehicle_solution, title=title_plot)
 
-    plt.tight_layout()
+    # plt.tight_layout()

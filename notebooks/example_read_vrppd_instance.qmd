@@ -246,7 +246,7 @@ These scenarios are read into `Scenario` objects and stored in a dictionary.
 from pprint import pprint
 from src.data.scenario import Scenario
 
-scenarios = Scenario.read(folder_path / "scenarios.json")
+scenarios = Scenario.read(folder_path / "scenarios_speed=50km_horizon=8h.json")
 pprint(scenarios)
 ```
 
@@ -263,7 +263,7 @@ from pprint import pprint
 import src.solution.build as build
 
 # Aggregated results
-results_filepath = "../reports/tables/results_scenarios_m1-m6_10minutes.csv"
+results_filepath = "../reports/tables/results_scenarios.csv"
 
 # Load data if exists
 if os.path.exists(results_filepath):
@@ -283,7 +283,7 @@ for k, scenario in scenarios.items():
 
         test_label = config.get_test_label(time_limit_min)
 
-        if test_label in df_results["Test ID"].values:
+        if not df_results.empty and test_label in df_results["Test ID"].values:
             print(f"### Test {test_label} already executed.")
             continue
 

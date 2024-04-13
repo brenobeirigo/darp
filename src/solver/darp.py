@@ -10,6 +10,7 @@ logger = logging.getLogger("__main__" + "." + __name__)
 OBJ_MIN_TRAVEL_DISTANCE = "Min. Travel Distance"
 OBJ_MIN_DRIVING_TIME = "Min. Driving Time"
 OBJ_MAX_PROFIT = "Max. Profit"
+OBJ_MAX_PROFIT_REV_MINUS_COSTS = "Max. Revenue - Travel Costs"
 OBJ_MIN_PROFIT = "Min. Profit"
 OBJ_MIN_TRAVEL_COST = "Min. Travel Cost"
 OBJ_MAX_TRAVEL_COST = "Max. Travel Cost"
@@ -211,6 +212,8 @@ class Darp:
     def set_obj(self, obj):
         if obj == OBJ_MIN_TRAVEL_DISTANCE:
             self.set_objfunc_min_distance_traveled()
+        elif obj == OBJ_MAX_PROFIT_REV_MINUS_COSTS:
+            self.set_objfunc_profit_revenue_minus_total_costs(obj=GRB.MAXIMIZE)
         elif obj == OBJ_MAX_PROFIT:
             self.set_objfunc_profit(obj=GRB.MAXIMIZE)
         elif obj == OBJ_MIN_PROFIT:
@@ -503,7 +506,59 @@ class Darp:
 
         self.solver.setObjective(quicksum(obj_expr), obj)
 
-        logger.debug("objective_function_min_distance_traveled")
+        logger.debug("objective_function_profit")
+        
+        
+    def set_objfunc_profit_revenue_minus_total_costs(self, obj=GRB.MAXIMIZE):
+        
+        obj_expr = []
+        for k in self.K:
+
+            for i, j in self.A:
+                total_travel_cost_per_km = (
+                    self.K_params[k]["cost_per_km"]
+                    * self.dist(i, j)
+                    * self.var_x[k][i][j])
+                
+                logger.debug(
+                    f"obj_{k}_travels_{i}-{j}_"
+                    f"cost_per_km={self.K_params[k]['cost_per_km']:06.2f}_times_"
+                    f"dist={self.dist(i, j):06.2f}_is_"
+                    f"{self.dist(i, j) * self.K_params[k]['cost_per_km']:06.2f}"
+                )
+                obj_expr.append(-total_travel_cost_per_km)
+            
+                total_cost_per_min = (
+                self.K_params[k]["cost_per_min"] 
+                * self.travel_time_min(k, i, j)
+                * self.var_x[k][i][j]
+                )
+                
+                logger.debug(
+                    f"obj_{k}_travels_{i}-{j}_"
+                    f"cost_per_min={self.K_params[k]['cost_per_min']:06.2f}_times_"
+                    f"travel_time={self.travel_time_min(k, i, j):06.2f}_is_"
+                    f"{self.travel_time_min(k, i, j) * self.K_params[k]['cost_per_min']:06.2f}"
+                )
+                obj_expr.append(-total_cost_per_min)
+                
+                
+                
+                
+                revenue_load = 0
+                if i in self.P:
+                    revenue_load = (
+                        self.K_params[k]["revenue_per_load_unit"]
+                        * self.var_x[k][i][j]
+                        * self.q[i]
+                    )
+                    logger.debug(f"obj_{k}_picks_{i}_revenue_{self.K_params[k]['revenue_per_load_unit']:06.2f}_load_{self.q[i]}")
+
+                    obj_expr.append(revenue_load)
+
+        self.solver.setObjective(quicksum(obj_expr), obj)
+
+        logger.debug("objective_function_profit")
 
     ####################################################################
     ####################################################################

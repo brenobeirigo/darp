@@ -11,7 +11,8 @@ from .route import plot_vehicle_route
 plots = os.listdir(f"reports/tables/routes/")
 folder_fig = "reports/figures"
 color = ["red", "green", "blue"]
-for p in plots:
+
+def plot_routes(p):
     test_case = p[:-4]
     df = pd.read_csv(f"reports/tables/routes/{p}")
     vehicles = df["vehicle_id"].unique()
@@ -49,4 +50,7 @@ for p in plots:
         plot_vehicle_route(axs, df_vehicle_solution, coord_box=tuple(box), route_color=color[vehicle_id])
         
     plt.savefig(f"{folder_fig}/{test_case}.svg", bbox_inches='tight')
+    
+for p in plots:
+    plot_routes(p)
     
