@@ -264,6 +264,7 @@ import src.solution.build as build
 
 # Aggregated results
 results_filepath = "../reports/tables/results_scenarios.csv"
+routes_folder = "../reports/tables/routes"
 
 # Load data if exists
 if os.path.exists(results_filepath):
@@ -295,6 +296,7 @@ for k, scenario in scenarios.items():
             time_limit_min=time_limit_min,
             lp_filepath="../reports/lps",
             log_filepath="../reports/logs",
+            routes_folder=routes_folder,
             )
 
 

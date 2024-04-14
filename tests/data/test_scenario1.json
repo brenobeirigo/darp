@@ -1,0 +1,40 @@
+{
+    "m6": {
+        "scenario_id": "M6",
+        "description": "Emissions-Profit Balance: Create a multi-objective strategy based on the M5 model, balancing CO₂ emissions and profits with different weight configurations (0.5 and 0.5; 0.25 and 0.75; 0.75 and 0.25), to enhance operational efficiency and environmental responsibility.",
+        "instances": [
+            "tests/data/vrppd_7-3-2.txt"
+        ],
+        "is_flex_depot": [
+            true
+        ],
+        "max_driving_time_h": [
+            null
+        ],
+        "allow_rejection": [
+            true
+        ],
+        "obj": [
+            ["Max. Profit", null],
+            ["Max. Revenue - Travel Costs", null],
+            ["Min. Profit", null],
+            ["Min. Travel Cost", null],
+            ["Max. Travel Cost", null],
+            ["Multi-Objective Profit & Costs", {"weight_profit":0.5, "weight_costs":0.5}],
+            ["Multi-Objective Profit & Costs", {"weight_profit":0.75, "weight_costs":0.25}],
+            ["Multi-Objective Profit & Costs", {"weight_profit":0.25, "weight_costs":0.75}]
+        ],
+        "cost_per_min": [
+            0.333333333
+        ],
+        "cost_per_km": [
+            0.01
+        ],
+        "speed_km_h": [
+            50
+        ],
+        "revenue_per_load_unit": [
+            50
+        ]
+    }
+}

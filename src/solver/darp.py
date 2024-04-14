@@ -18,7 +18,7 @@ OBJ_MIN_TOTAL_LATENCY = "Min. Total Latency"
 OBJ_MIN_FINAL_MAKESPAN = "Min. Final Makespan"
 CONSTR_FLEXIBLE_DEPOT = "constr_flexible_depot"
 CONSTR_FIXED_DEPOT = "constr_fixed_depot"
-MO_MIN_PROFIT_MIN_TRAVEL_COST = "mo_min_profit_min_travel_cost"
+MO_MIN_PROFIT_MIN_TRAVEL_COST = "Multi-Objective Profit & Costs"
 
 from ..data.instance import Instance
 from ..data.scenario import ScenarioConfig
@@ -209,13 +209,15 @@ class Darp:
         )
         return f"{type(self).__name__}({input_data_str})"
 
-    def set_obj(self, obj):
+    def set_obj(self, obj, params=None):
         if obj == OBJ_MIN_TRAVEL_DISTANCE:
             self.set_objfunc_min_distance_traveled()
         elif obj == OBJ_MAX_PROFIT_REV_MINUS_COSTS:
             self.set_objfunc_profit_revenue_minus_total_costs(obj=GRB.MAXIMIZE)
         elif obj == OBJ_MAX_PROFIT:
             self.set_objfunc_profit(obj=GRB.MAXIMIZE)
+        elif obj == MO_MIN_PROFIT_MIN_TRAVEL_COST:
+            self.set_objfunc_mo_profit_costs(**params)
         elif obj == OBJ_MIN_PROFIT:
             self.set_objfunc_profit(obj=GRB.MINIMIZE)
         elif obj == OBJ_MIN_TRAVEL_COST:
@@ -228,6 +230,7 @@ class Darp:
             self.set_objfunc_min_total_makespan()
         elif obj == OBJ_MIN_DRIVING_TIME:
             self.set_objfunc_min_driving_time()
+        
         else:
             raise ValueError("Invalid objective function specified.")
             
@@ -455,7 +458,7 @@ class Darp:
 
         self.solver.setObjective(quicksum(obj_exp), obj)
 
-        logger.debug("objective_function_min_cost_per_km")
+        logger.debug(f"objective_function_cost_per_km={obj}")
     
     def set_objfunc_min_driving_time(self):
         
@@ -466,6 +469,118 @@ class Darp:
 
         logger.debug("objective_function_min_driving_time")
 
+    def set_objfunc_mo_profit_costs(self, weight_profit=0.5, weight_costs=0.5):
+        import copy
+        
+        # Utopia
+        cost_min = copy.copy(self)
+        cost_min.set_obj(OBJ_MIN_TRAVEL_COST)
+        cost_min_sol_obj = cost_min.solve()
+        cost_min_sol = cost_min_sol_obj.solver_stats.sol_objvalue
+        
+        profit_max = copy.copy(self)
+        profit_max.set_obj(OBJ_MAX_PROFIT)
+        profit_max_sol_obj = profit_max.solve()
+        profit_max_sol = profit_max_sol_obj.solver_stats.sol_objvalue
+        
+        # Nadir
+        cost_max = copy.copy(self)
+        cost_max.set_obj(OBJ_MAX_TRAVEL_COST)
+        cost_max_sol_obj = cost_max.solve()
+        cost_max_sol = cost_max_sol_obj.solver_stats.sol_objvalue
+        
+        profit_min = copy.copy(self)
+        profit_min.set_obj(OBJ_MIN_PROFIT)
+        profit_min_sol_obj = profit_min.solve()
+        profit_min_sol = profit_min_sol_obj.solver_stats.sol_objvalue
+        
+        if cost_min_sol is None or profit_max_sol is None or cost_max_sol is None or profit_min_sol is None:
+            self.solution_ = Solution(
+                    instance=self.instance,
+                    summary=None,
+                    solver_stats=self.sol_,
+                    vehicle_routes=None,
+                )
+            return self.solution_
+        
+        obj_expr_cost = []
+        for k in self.K:
+            for i, j in self.A:
+                total_travel_cost_per_km = (
+                    self.K_params[k]["cost_per_km"]
+                    * self.dist(i, j)
+                    * self.var_x[k][i][j])
+                logger.debug(
+                    f"obj1_{k}_travels_{i}-{j}_"
+                    f"cost_per_km={self.K_params[k]['cost_per_km']:06.2f}_times_"
+                    f"dist={self.dist(i, j):06.2f}_is_"
+                    f"{self.dist(i, j) * self.K_params[k]['cost_per_km']:06.2f}"
+                )
+                obj_expr_cost.append(total_travel_cost_per_km)
+            
+
+
+        obj_expr_profit = []
+        for k in self.K:
+            total_cost_per_min = (
+                self.K_params[k]["cost_per_min"] 
+                * self.var_driving_time[k]
+            )
+            
+            logger.debug(f"obj2_driving_{k}_cost_per_min={self.K_params[k]['cost_per_min']:06.2f}")
+
+            obj_expr_profit.append(-total_cost_per_min)
+
+            for i, j in self.A:
+                total_travel_cost_per_km = (
+                    self.K_params[k]["cost_per_km"]
+                    * self.dist(i, j)
+                    * self.var_x[k][i][j])
+                logger.debug(
+                    f"obj2_{k}_travels_{i}-{j}_"
+                    f"cost_per_km={self.K_params[k]['cost_per_km']:06.2f}_times_"
+                    f"dist={self.dist(i, j):06.2f}_is_"
+                    f"{self.dist(i, j) * self.K_params[k]['cost_per_km']:06.2f}"
+                )
+                obj_expr_profit.append(-total_travel_cost_per_km)
+                
+                revenue_load = 0
+                if i in self.P:
+                    revenue_load = (
+                        self.K_params[k]["revenue_per_load_unit"]
+                        * self.var_x[k][i][j]
+                        * self.q[i]
+                    )
+                    logger.debug(f"obj2_{k}_picks_{i}_revenue_{self.K_params[k]['revenue_per_load_unit']:06.2f}_load_{self.q[i]}")
+
+                    obj_expr_profit.append(revenue_load)
+
+
+        range_cost = (cost_max_sol - cost_min_sol)
+        if range_cost > 0:
+            norm_cost = (cost_max_sol - quicksum(obj_expr_cost))/range_cost
+        else:
+            norm_cost = 0
+        
+        range_profit = (profit_max_sol - profit_min_sol)
+        if range_profit > 0:
+            norm_profit = (quicksum(obj_expr_profit) - profit_min_sol)/range_profit
+        else:
+            norm_profit = 0
+        
+        if range_cost > 0 or range_profit > 0:
+        
+            self.solver.setObjective(
+                weight_costs*norm_cost 
+                + weight_profit*norm_profit,
+            GRB.MAXIMIZE
+            )
+
+        else:
+            
+            self.solver.setObjective(quicksum(obj_expr_profit), GRB.MAXIMIZE)
+            
+        logger.debug("objective_function_mo_profit_cost")
         
     def set_objfunc_profit(self, obj=GRB.MAXIMIZE):
         
@@ -506,7 +621,7 @@ class Darp:
 
         self.solver.setObjective(quicksum(obj_expr), obj)
 
-        logger.debug("objective_function_profit")
+        logger.debug(f"objective_function_profit={obj}")
         
         
     def set_objfunc_profit_revenue_minus_total_costs(self, obj=GRB.MAXIMIZE):
@@ -558,7 +673,7 @@ class Darp:
 
         self.solver.setObjective(quicksum(obj_expr), obj)
 
-        logger.debug("objective_function_profit")
+        logger.debug(f"objective_function_profit_revenue_minus_costs={obj}")
 
     ####################################################################
     ####################################################################

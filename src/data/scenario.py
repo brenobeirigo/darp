@@ -1,5 +1,5 @@
 from itertools import product
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import json
 import logging
 
@@ -14,13 +14,34 @@ class ScenarioConfig:
     is_flex_depot: bool
     max_driving_time_h: float
     allow_rejection: bool
-    obj: str
+    obj: tuple[str,dict[str,float]]
     cost_per_min: float
     cost_per_km: float
     speed_km_h: float
     revenue_per_load_unit: float
     instance_label: str = ""
 
+    @property
+    def obj_label(self):
+        return (
+            self.obj[0]
+            if self.obj[1] is None
+            else (
+                f"{self.obj[0]}"
+                f"(" + ",".join(
+                    [
+                        f"{v}"
+                        for k, v in self.obj[1].items()
+                    ]) +")"
+            )
+        )
+
+    def to_dict(self) -> dict:
+        """Convert the ScenarioConfig instance into a dictionary"""
+        d = asdict(self)
+        d["obj"] = self.obj_label
+        return d
+    
     def __post_init__(self):
 
         instance = Path(self.instance_filepath)
@@ -37,7 +58,7 @@ class ScenarioConfig:
 
         instance_label = Path(self.instance_filepath).stem
         is_flex_depot = self.is_flex_depot
-        obj = self.obj
+        obj = self.obj_label
         max_driving_time_h = self.max_driving_time_h
         allow_rejection = self.allow_rejection
         scenario_id = self.scenario_id
@@ -76,7 +97,7 @@ class Scenario:
     cost_per_km: list[float]
     speed_km_h: list[float]
     revenue_per_load_unit: list[float]
-    obj: list[str]
+    obj: list[tuple[str,dict[str,float]]]
 
     @classmethod
     def read(cls, file_path):
@@ -98,7 +119,7 @@ class Scenario:
                 cost_per_min=scenario_data["cost_per_min"],
                 cost_per_km=scenario_data["cost_per_km"],
                 speed_km_h=scenario_data["speed_km_h"],
-                obj=scenario_data["obj"],
+                obj=[tuple(o_data) for o_data in scenario_data["obj"]],
                 revenue_per_load_unit=scenario_data["revenue_per_load_unit"],
             )
             scenarios[k] = scenario

@@ -8,6 +8,52 @@ from src.data.parser import vrppd_dict_to_instance_obj
 from src import Darp
 import src.solver.darp as darp
 
+
+@pytest.mark.parametrize(
+    'one_depot_one_customer_one_vehicle, reject, obj, params, expected_sol_route, expected_sol_obj',
+    [
+        ({"speed": 60, "capacity": 20},False, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=0.5, weight_costs=0.5), set([(1, 2, 3, 4)]), 0.5), 
+        ({"speed": 60, "capacity": 20},False, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=0.25, weight_costs=0.75), set([(1, 2, 3, 4)]), 0.25), 
+        ({"speed": 60, "capacity": 20},False, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=1, weight_costs=0), set([(1, 2, 3, 4)]), 1), 
+        ({"speed": 60, "capacity": 20},False, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=0, weight_costs=1), set([(1, 2, 3, 4)]), 0), # Users can't be rejected, but mo solution is 0
+        ({"speed": 60, "capacity": 20},True, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=0.5, weight_costs=0.5), set([(1, 4)]), 0.5*((0-(-166.666))/(956.266666-(-166.666666))) + 0.5 * 1), 
+        ({"speed": 60, "capacity": 20},True, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=0.25, weight_costs=0.75), set([(1, 4)]), 0.25*((0-(-166.666))/(956.26666-(-166.666666))) + 0.75 * 1), 
+        ({"speed": 60, "capacity": 20},True, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=0.75, weight_costs=0.25), set([(1, 2, 3, 4)]), 0.75*((956.26666-(-166.666))/(956.26666-(-166.666666))) + 0.25 * 0), 
+        ({"speed": 60, "capacity": 20},True, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=1, weight_costs=0), set([(1, 2, 3, 4)]), 1), 
+        ({"speed": 60, "capacity": 20},True, darp.MO_MIN_PROFIT_MIN_TRAVEL_COST, dict(weight_profit=0, weight_costs=1), set([(1, 4)]), 1), # 1 because costs is 0 
+        # ({"speed": 5, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, None, None), # Fails speed
+        # ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_DISTANCE, set([(1, 2, 3, 4)]), 40),
+        # ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_DRIVING_TIME, set([(1, 2, 3, 4)]), 130),
+        # ({"speed": 60, "capacity": 20}, darp.OBJ_MAX_PROFIT, set([(1, 2, 3, 4)]),
+        #  (50 * 20 - 0.05 * 0.2 * (10 + 10 + 20) - 20 / 60 * (320 - 190))),
+        # ({"speed": 60, "capacity": 20}, darp.OBJ_MIN_TRAVEL_COST, set([(1, 2, 3, 4)]),
+        #  (0.05 * 0.2 * (10 + 10 + 20))),
+    ],
+    indirect=["one_depot_one_customer_one_vehicle"]
+)
+def test_mo_solution(one_depot_one_customer_one_vehicle, reject, obj, params, expected_sol_route, expected_sol_obj):
+    """Test the order of pickup and delivery with a set of predefined conditions."""
+    instance_config = one_depot_one_customer_one_vehicle
+    pprint(instance_config)
+    instance = vrppd_dict_to_instance_obj(instance_config)
+    model = Darp(instance)
+    model.build(allow_rejection=reject)
+    model.set_obj(obj, params=params)
+    solution_obj = model.solve()
+
+    if solution_obj.vehicle_routes:
+        df = solution_obj.route_df(fn_dist=model.dist)
+        actual_sol_obj = solution_obj.solver_stats.sol_objvalue
+        print(df)
+        pprint(solution_obj.solver_stats)
+        pprint(solution_obj.summary)
+        pprint(solution_obj.routes_dict())
+        assert set(solution_obj.routes_dict().values()) == expected_sol_route
+        assert math.isclose(expected_sol_obj, actual_sol_obj, rel_tol=1e-6)
+    else:
+        assert expected_sol_route is None
+        
+
 @pytest.mark.parametrize(
     'one_depot_one_customer_one_vehicle, obj, expected_sol_route, expected_sol_obj',
     [

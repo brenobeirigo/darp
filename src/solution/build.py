@@ -5,6 +5,8 @@ import pandas as pd
 import pathlib
 import logging
 from src.solver.darp import Darp
+from pathlib import Path
+import os
 # import sys
 # sys.path.append("../")
 
@@ -16,6 +18,7 @@ def build_run(
     time_limit_min=10,
     lp_filepath=None,
     log_filepath=None,
+    routes_folder=None,
     ):
 
 
@@ -48,7 +51,8 @@ def build_run(
 
     # Configure model
     model.set_flex_depot(config.is_flex_depot)
-    model.set_obj(config.obj)
+    obj, obj_params = config.obj
+    model.set_obj(obj=obj, params=obj_params)
 
     # Configure logs
     if lp_filepath:
@@ -61,17 +65,25 @@ def build_run(
     # Run solver
     solution_obj = model.solve()
 
-    df_config = pd.DataFrame([config])
+    # Create a one-line DataFrame where config params are the columns
+    df_config = pd.DataFrame([config.to_dict()])
     
     # Print solver statistics
     logger.debug(solution_obj.solver_stats)
 
+    
     if solution_obj.vehicle_routes:
 
         # Save route
         df_routes = solution_obj.route_df(fn_dist=model.dist)
-        df_routes.to_csv(f"../reports/tables/routes/{test_label}.csv")
         logger.debug(df_routes)
+        
+        path_routes_folder = Path(routes_folder)
+        
+        if not path_routes_folder.exists():
+            os.makedirs(path_routes_folder, exist_ok=True)
+            
+        df_routes.to_csv(path_routes_folder/f"{test_label}.csv")
     
     else:
         logger.debug("Optimal solution was not found. Can't retrieve routes.")
