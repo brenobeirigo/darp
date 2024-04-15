@@ -113,7 +113,7 @@ def plot_line_collection(
 #### Plot Nodes
 
 
-def plot_nodes(axis, df, size_node=150):
+def plot_nodes(axis, df, size_node=150, skip=False):
     """
     Plot nodes on the axis using DataFrame.
     """
@@ -127,6 +127,7 @@ def plot_nodes(axis, df, size_node=150):
         color=node_features[NodeType.O_DEPOT.name]["color"],
         marker=node_features[NodeType.O_DEPOT.name]["marker"],
         s=node_features[NodeType.O_DEPOT.name].get("size", size_node),
+        alpha=0.4 if skip else 1
     )
 
     # Pickup nodes
@@ -138,6 +139,7 @@ def plot_nodes(axis, df, size_node=150):
         marker=node_features[NodeType.PU.name]["marker"],
         edgecolors=node_features[NodeType.PU.name]["edgecolor"],
         s=node_features[NodeType.PU.name].get("size", size_node),
+        alpha=0.4 if skip else 1
     )
 
     # Dropoff nodes
@@ -149,13 +151,14 @@ def plot_nodes(axis, df, size_node=150):
         marker=node_features[NodeType.DO.name]["marker"],
         edgecolors=node_features[NodeType.DO.name]["edgecolor"],
         s=node_features[NodeType.DO.name].get("size", size_node),
+        alpha=0.4 if skip else 1
     )
 
 
 #### Plot Node Labels
 
 
-def plot_node_labels(axis, df, ignore_depot=True, fontsize=7):
+def plot_node_labels(axis, df, ignore_depot=True, fontsize=7, skip=False):
     """
     Plot labels for nodes using DataFrame.
     """
@@ -178,7 +181,9 @@ def plot_node_labels(axis, df, ignore_depot=True, fontsize=7):
             ha='center',
             va='center',
             fontfamily='Consolas',
-            color=node_features[row["node_type"]]["font-color"]
+            color=node_features[row["node_type"]]["font-color"],
+            alpha=0.4 if skip else 1
+            
         )
         
 
