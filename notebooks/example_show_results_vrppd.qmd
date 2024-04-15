@@ -1,0 +1,1153 @@
+---
+toc: true
+embed-resources: true
+format: 
+  html:
+    page-layout: full
+    grid: 
+      body-width: 1000px
+      margin-width: 1000px
+# toc-expand: true
+toc-depth: 5
+execute:
+  echo: false
+css: table.css
+---
+
+# Assignment 1
+
+
+## Mathematical Model
+
+### Notation
+
+#### Indices
+
+- **$k$**: Vehicle index.
+- **$o$**: Origin depot index.
+- **$d$**: Destination depot index.
+- **$i, j$**: Node indices.
+
+#### Sets
+
+- **$K$**: Set of vehicles.
+- **$P$**: Set of pickup locations.
+- **$D$**: Set of delivery locations.
+- **$A$**: Set of valid  **$(i, j)$** arcs (i.e., pickup-dropoff, depot-pickup, dropoff-depot pairs), with **$i, j \in N$**.
+- **$O_1$**: Set of origin depots where vehicles start their routes.
+- **$O_2$**: Set of destination depots where vehicles end their routes.
+- **$N$**: Set of all nodes ($P \cup D \cup O_1 \cup O_2$), including origin and destination depots.
+- **$N^{+}(i)$**: Set of nodes that can be reached directly from node $i$.
+- **$N^{-}(i)$**: Set of nodes from which node $i$ can be directly reached.
+
+#### Parameters
+
+- **$c^{\text{distance}}$**: Cost per kilometer traveled.
+- **$c^{\text{time}}$**: Cost per unit of time spent driving.
+- **$p^k$**: Revenue per unit load per vehicle $k$.
+- **$q_i$**: Load quantity associated with node $i$.
+- **$e_i$**: Earliest allowable service start time at node $i$.
+- **$l_i$**: Latest allowable service start time at node $i$.
+- **$t^{\text{max}}$**: Maximum driving time allowed for any vehicle.
+- **$\text{dist}(i, j)$**: Distance (km) between nodes $i$ and $j$.
+- **$s$**: Average speed vehicles  (km/h).
+- **$\text{time}(i, j)$**: Travel time between nodes $i$ and $j$ ($\frac{\text{dist}(i, j)}{s}$).
+- **$d_i$**: Duration of service required at node $i$.
+- **$H_{ijk}$**: A sufficiently large constant for the $i, j$ arc when vehicle $k$ is considered, used in linearization (start working time).
+- **$M_{ijk}$**: A sufficiently large constant for the $i, j$ arc when vehicle $k$ is considered, used in linearization (transit times).
+- **$W_{ijk}$**: A sufficiently large constant for the $i, j$ arc when vehicle $k$ is considered, used in linearization (load).
+
+::: {.callout-note}
+$c^{\text{time}}$ corresponds to truck transportation costs associated with driving (fuel, driver salary, and other associated costs). 
+Note that if this includes waiting times (e.g., at pickup nodes), ensuring drivers leave depots as late as possible and return as early as possible helps minimize time spent outside depots, which can help avoid parking costs, etc.
+:::
+
+#### Variables
+
+- **$x^k_{ij}$**: Binary decision variable indicating whether vehicle $k$ travels directly from node $i$ to node $j$.
+- **$Q^k_i$**: Continuous variable representing the load of vehicle $k$ after visiting node $i$.
+- **$L^k_i$**: Continuous variable representing the total waiting time vehicle $k$ incurs at node $i$ during service.
+- **$B^k_i$**: Continuous variable representing the time vehicle $k$ begins servicing node $i$.
+- **$B^k_1$**: Continuous variable representing the start working time of vehicle $k$ at the origin depot.
+- **$B^k_2$**: Continuous variable representing the end working time of vehicle $k$ at the destination depot.
+- **$t^k$**: Continuous variable representing the total driving time (i.e., $B^k_2 - B^k_2$) of vehicle $k$.
+- **$m$**: Continuous variable representing the makespan, or the latest finish time among all vehicles.
+
+### Objective Functions
+
+#### Minimize Total Latency
+
+- **Objective**: Minimize the sum of the times of beginning service across all pickup and delivery locations.
+
+  $$
+  \min \sum_{k \in K} \sum_{i \in P \cup D} B^k_i
+  $$
+
+#### Minimize Total Makespan
+
+- **Objective**: Minimize the latest time any vehicle finishes its service (i.e., the makespan of the entire fleet operation).
+
+  $$
+  \min m
+  $$
+
+#### Minimize Distance Traveled
+
+- **Objective**: Minimize the total distance traveled by all vehicles across all routes.
+
+  $$
+  \min \sum_{k \in K} \sum_{(i, j) \in A} \text{dist}(i, j) \cdot x^k_{ij}
+  $$
+
+#### Minimize Travel Cost (Emissions)
+
+- **Objective**: Minimize the total travel cost which is the product of distance, cost per kilometer, and route decision variables.
+
+  $$
+  \min \sum_{k \in K} \sum_{(i, j) \in A} c^{\text{distance}} \cdot \text{dist}(i, j) \cdot x^k_{ij}
+  $$
+
+#### Maximize Profit (driving time includes travel time and waiting outside depots)
+
+- **Objective**: Maximize the difference between the revenue earned from loads and the costs incurred from driving time (traveling between nodes and waiting) and emissions.
+
+$$
+\max \left( 
+\overbrace{\sum_{k \in K} \sum_{(i,j) \in A} \left( p_k \cdot x_{kij} \cdot q_i \cdot \mathbf{1}_{i \in P} \right)}^{\text{Revenue (€/kg)}} - 
+\overbrace{\sum_{k \in K} \left( c^{\text{time}} \cdot t_k \right)}^{\text{Transportation cost (€/h)}} - 
+\overbrace{\sum_{k \in K} \sum_{(i,j) \in A} \left( c^{\text{distance}} \cdot \text{{dist}}(i, j) \cdot x_{kij} \right)}^{\text{Emission costs (€/km)}}
+\right)
+$$
+
+- **$\mathbf{1}_{i \in P}$**: An indicator function that is equal to 1 if node $i$ is a pickup point (part of set $P$), and 0 otherwise. This function is crucial for calculating the revenue, as it ensures that revenue is only considered for routes that involve load pickups.
+
+
+#### Maximize Profit (driving time includes travel time only)
+
+- **Objective**: Maximize the difference between the revenue earned from loads and the costs incurred from driving time (traveling between nodes) and emissions.
+
+$$
+\max \left( 
+\overbrace{\sum_{k \in K} \sum_{(i,j) \in A} \left( p_k \cdot x_{kij} \cdot q_i \cdot \mathbf{1}_{i \in P} \right)}^{\text{Revenue (€/kg)}} - 
+\overbrace{\sum_{k \in K} \sum_{(i,j) \in A} \left( c^{\text{time}} \cdot x_{kij} \cdot \text{time}(i, j) \right)}^{\text{Transportation cost (€/h)}} - 
+\overbrace{\sum_{k \in K} \sum_{(i,j) \in A} \left( c^{\text{distance}} \cdot \text{{dist}}(i, j) \cdot x_{kij} \right)}^{\text{Emission costs (€/km)}}
+\right)
+$$
+
+- **$\mathbf{1}_{i \in P}$**: An indicator function that is equal to 1 if node $i$ is a pickup point (part of set $P$), and 0 otherwise. This function is crucial for calculating the revenue, as it ensures that revenue is only considered for routes that involve load pickups.
+
+#### Minimize Costs and Maximize Profit (Multi-Objective)
+
+To combine the normalized objectives of maximizing profit ($\max p(x)$) and minimizing travel costs (emissions) ($\min c(x)$) using weights $w_1$ and $w_2$, we can use a weighted sum approach.
+
+First, we normalize these two objectives, determining the utopia and nadir points:
+
+- **Utopia Point** ($p^\circ$, $c^\circ$): It represents the best possible values for each objective (highest profit and lowest travel costs).
+- **Nadir Point** ($p_{\text{min}}$, $c_{\text{max}}$): This point represents the worst values that each objective can take (lowest profit and highest cost incurred).
+
+Each objective can be normalized using:
+$$f_{\text{norm}}(x) = \frac{f(x) - f^\circ}{f_{\text{max}} - f^\circ}$$
+
+For profits, we have:
+$$p_{\text{norm}}(x) = \frac{p(x) - p_{\text{min}}}{p^\circ - p_{\text{min}}},$$
+where $p^\circ$ is the maximum profit (best scenario) and $p_{\text{min}}$ is the minimum profit achieved.
+
+For costs, we have:
+$$c_{\text{norm}}(x) = \frac{c_{\text{max}} - c(x)}{c_{\text{max}} - c^\circ},$$
+where $c^\circ$ is the minimum travel cost (best scenario), and $c_{\text{max}}$ is the highest cost.
+
+This normalization ensures that each objective contributes equally to the decision-making process, thus preventing any one metric with a larger scale or different units from dominating the optimization.
+
+The weighted sum model calculates a single objective function by adding together the weighted objectives:
+$$Z(x) = w_1 \cdot p_{\text{norm}}(x) + w_2 \cdot c_{\text{norm}}(x),$$
+where $w_1$ and $w_2$ must satisfy $w_1 + w_2 = 1$, and $Z(x)$ is the combined score used for optimization.
+
+Finally, the goal is to maximize $Z(x)$, which now represents a balance between maximizing profit and minimizing costs based on the assigned weights:
+$$\max Z(x) = \max \big(w_1 \cdot p_{\text{norm}}(x) + w_2 \cdot c_{\text{norm}}(x)\big).$$
+
+
+### Parameter Settings
+
+Below is a detailed table with the values for each of the parameters mentioned in the question:
+
+| **Parameter**             | **Description**                                           | **Value**                      |
+|---------------------------|-----------------------------------------------------------|--------------------------------|
+| $c^{\text{distance}}$ | Cost per kilometer traveled. Calculated from CO₂ emission (200 g/km) and cost per kg of CO₂ (€0.05). | €0.01 (€0.05/kg $\times$ 0.2 kg/km) |
+| $c^{\text{time}}$     | Cost per hour of driving.                             | €20/hour                       |
+| $s$                   | Average speed vehicles  (km/h).                       | 25km/h, 50km/h                 |
+| $p^k$                 | Revenue per unit load per vehicle $k$.                | €50/kg                         |
+| $q_i$                 | Load quantity at node $i$ (specify if known).         | Specific per node (e.g., based on customer orders) |
+| $e_i$, $l_i$          | Earliest and latest service times at node $i$.        | Specific per node (e.g., based on customer orders) |
+| $t^{\text{max}}$      | Maximum driving time allowed for any vehicle.         | 5, 7, and 8 hours (only for model M5) |
+| $\text{dist}(i, j)$   | Euclidean distance between nodes $i$ and $j$.         | Computed from node coordinates |
+| $\text{time}(i, j)$             | Travel time between nodes $i$ and $j$, calculated as distance/speed. | $\frac{\text{dist}(i, j)}{s}$ km/h, rounded to 2 decimal places |
+| $d_i$                 | Duration of service required at node $i$ (loading/unloading time is disregarded). | 0 (loading/unloading time disregarded) |
+| $H_{ijk}$, $M_{ijk}$, $W_{ijk}$ | Large constants for linearization in constraints.          | Values are tightly defined for each $(i,j,k)$ combination to avoid numerical instability |
+
+### Constraints
+
+#### Service Constraints
+
+- **Every Request Served Exactly Once**:
+  $$
+  \sum_{k \in K} \sum_{j \in N^{+}(i)} x^k_{ij} = 1 \quad \forall i \in P
+  $$
+
+- **Every Request Served Exactly Once or Rejected**:
+  $$
+  \sum_{k \in K} \sum_{j \in N^{+}(i)} x^k_{ij} \leq 1 \quad \forall i \in P
+  $$
+
+#### Continuity and Transition Constraints
+
+- **Same Vehicle for Pickup and Delivery**:
+  $$
+  \sum_{j \in N^{+}(i)} x^k_{ij} - \sum_{j \in N^{+}(d)} x^k_{dj} = 0 \quad \forall i \in P, \forall k \in K
+  $$
+
+- **Vehicle Must Leave Start Terminal (Origin Depots $O_1$)**:
+  $$
+  \sum_{j \in N^{+}(o)} x^k_{oj} = 1 \quad \forall o \in O_1, \forall k \in K
+  $$
+
+- **Vehicle Must Enter End Terminal (Destination Depots $O_2$)**:
+  $$
+  \sum_{j \in N^{-}(d)} x^k_{jd} = 1 \quad \forall d \in O_2, \forall k \in K
+  $$
+
+#### Time Constraints
+
+- **Visit Times Within Time Windows**:
+  $$
+  B^k_{i} \geq e_i \quad \text{and} \quad B^k_{i} \leq l_i \quad \forall k \in K, \forall i \in N
+  $$
+
+- **Feasible Transit Times**:
+  $$
+  B^k_{j} \geq B^k_{i} + t_{ijk} + d_i - M_{ijk}(1 - x^k_{ij}) \quad \forall (i, j) \in A, \forall k \in K
+  $$
+
+#### Load Constraints
+
+- **Vehicle Starts and Ends Empty**:
+  $$
+  Q^k_{o} = 0 \quad \text{and} \quad Q^k_{d} = 0 \quad \forall o \in O_1, d \in O_2, \forall k \in K
+  $$
+
+- **Vehicle Load Management**:
+  $$
+  Q^k_{j} \geq Q^k_{i} + q_j - W_{ijk}(1 - x^k_{ij}) \quad \forall (i, j) \in A, \forall k \in K
+  $$
+
+#### Maximum Driving Time Constraint
+
+- **Limit Driving Time**:
+  $$
+  t^k \leq t^{\text{max}} \quad \forall k \in K
+  $$
+
+#### Makespan Constraint
+
+- **Latest Finish Across All Vehicles**:
+  $$
+  m \geq B^k_{d} \quad \forall d \in O_2, \forall k \in K
+  $$
+
+#### Driving Time Calculation
+
+- **Start Working Time Constraints (at Origin Depot $O_1$)**:
+  $$
+  B^k_1 \geq B^k_i - H_{ijk} \cdot (1 - x^k_{ij}) \quad \forall (i, j) \in A, i \in O_1
+  $$
+  $$
+  B^k_1 \leq B^k_i + H_{ijk} \cdot (1 - x^k_{ij}) \quad \forall (i, j) \in A, i \in O_1
+  $$
+
+- **End Working Time Constraints (at Destination Depot $O_2$)**:
+  $$
+  B^k_2 \geq B^k_j - H_{ijk} \cdot (1 - x^k_{ij}) \quad \forall (i, j) \in A, j \in O_2
+  $$
+  $$
+  B^k_2 \leq B^k_j + H_{ijk} \cdot (1 - x^k_{ij}) \quad \forall (i, j) \in A, j \in O_2
+  $$
+
+- **Driving Time Based on Start and End Times**:
+  $$
+  t^k = B^k_2 - B^k_1 \quad \forall k \in K
+  $$
+
+
+## Instance Settings
+
+
+```{python}
+import sys
+ # Adding parent directory to the paths. This allows you to load
+ # packages in folders located one level before.
+sys.path.append("../")
+
+# # IPython magic commands for auto-reloading modules
+# %load_ext autoreload
+# %autoreload 2
+```
+
+```{python}
+import pandas as pd
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 150)
+import numpy as np
+
+import os
+
+df_raw = pd.read_csv("../reports/tables/results_scenarios.csv")
+
+  
+# Filter invalid scenario combinations
+df = df_raw[((df_raw['Speed (km/h)']==25) & (df_raw['Maximum Driving Time (min)']==24*60))|((df_raw['Speed (km/h)']==50) & (df_raw['Maximum Driving Time (min)']==8*60))].copy()
+
+
+df = df[df["Max Runtime (min)"] == 10]
+
+
+
+```
+
+
+## KPIs
+
+1. **Objective Value**: The value of the objective function for the current solution.
+2. **Objective Bound**: The best possible value of the objective function, considering model constraints and execution time limits (see [ObjBound Attribute - Gurobi](https://www.gurobi.com/documentation/current/refman/objbound.html)).
+3. **Number of Serviced**: Total requests successfully assigned and serviced.
+4. **Total Distance (km)**: Cumulative distance traveled by all vehicles.
+5. **Total Duration (hours)**: Cumulative sum of the time spent working, calculated from vehicle departure from the depot to arrival back at the depot.
+<!-- 6. **Total Waiting (hours)**: Total time passengers wait from their requested pickup times until actual pickup. -->
+<!-- 7. **Total Transit (hours)**: Total time passengers are in transit from pickup to drop-off points. -->
+8. **Total Latency (hours)**: Total arrival time at each customer pick-up and delivery locations.
+9. **Final Makespan (hours)**: The time at which the last vehicle finishes its route, marking the end of the service day.
+10. **CPU Time (sec)**: Processor time taken to run the optimization algorithm.
+11. **Work**:  A deterministic measure of computational effort, independent of runtime variability (see [Work Attribute - Gurobi](https://www.gurobi.com/documentation/current/refman/work.html)).
+12. **Solver Gap (%)**: Percentage difference between the objective value and the objective bound.
+
+
+
+```{python}
+
+kpis_system = [
+    'Objective Value',
+    'Objective Bound',
+    'N. of Serviced',
+    'Total Distance (km)',
+    'Total Duration (min)',
+    # 'Total Waiting (min)',
+    #'Average Waiting (min)',
+    # 'Total Transit (min)',
+    'Total Latency (min)', 
+    'Final Makespan (min)',
+    #'Average Transit (min)',
+    'Cpu Time (sec)',
+    'Work',
+    "Solver Gap (%)"
+]
+
+scenario_config_cols = [
+    'Speed (km/h)',
+    'Maximum Driving Time (min)',
+    'Scenario ID',
+    'Allow Flexible Depot Return',
+    'Maximum Working Time (h)',
+    'Allow Customer Rejection',
+    'Instance Label',
+    'Objective',
+]
+
+summary_result_cols = [
+    'Objective Value',
+    'Objective Bound',
+    "Solver Gap (%)",
+    'Cpu Time (sec)',
+    'Work',
+]
+
+# Remove objectives not used
+df = df[~df["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])]
+
+df = df.sort_values(by=scenario_config_cols)
+df["Solver Gap"] = df["Solver Gap"]*100
+df.rename(columns={"Solver Gap": "Solver Gap (%)"}, inplace=True)
+
+```
+
+
+```{python}
+df_result = df[scenario_config_cols + ["Test ID"] + kpis_system]\
+    .dropna(subset=["Objective"])\
+    .drop_duplicates()\
+    .round(2)
+
+columns_min = [c for c in kpis_system if "(min)" in c]
+columns_h = [c.replace("(min)","(h)") for c in columns_min]
+kpis_system_h = [c.replace("(min)","(h)") for c in kpis_system]
+# print("kpis", kpis_system_h)
+# print(columns_min, columns_h)
+df_result[columns_h] = df_result[columns_min]/60
+df_result.drop(columns=columns_min, inplace=True)
+# df_result.columns
+# df_result[kpis_system_h]
+```
+
+## Testing on Toy Instances
+
+Testing a *Mixed Integer Linear Programming* (MILP) model on simplified or "toy" instances before tackling complex scenarios allows us to validate the correctness of the model's implementation, ensure it handles all constraints appropriately, and troubleshoot any potential issues in a controlled environment.
+
+Here are a few examples of toy instances that can be used to test various aspects of a MILP model:
+
+- **One Depot, One Customer, One Vehicle**: This basic setup includes a single depot, one pickup point, and one delivery location, managed by one vehicle. This scenario helps in checking the basic logic of routing, load handling, and back-to-depot constraints without the complexity of multiple nodes and vehicles.
+- **One Depot, One Customer, One Vehicle with No Time Windows**: Similar to the first, but without time window constraints. This tests the model's performance under less restricted conditions, focusing purely on spatial and capacity constraints.
+- **Two Depots, One Customer, One Vehicle**: Introduces a choice between two depots, adding a layer of complexity and testing the model’s ability to optimally choose between different starting points.
+- **Two Depots, Two Customers, One Vehicle**: A more complex scenario involving multiple pickups and deliveries, which tests the model's capacity to optimize routes involving multiple stops.
+- **Two Depots, Two Competing Customers, One Vehicle**: A scenario where the routing needs to pick one of the customers located near each depot (i.e., test rejection).
+
+To make tests easier, choose (x, y) coordinates that facilitate distance calculation. For example, picking up all customers below will result in a total distance traveled equaling 40km:
+
+::: {#fig-example_route}
+```
+    Node types:  Depot                   Pickup                    Dropoff                   Depot
+    CoordX[TW]:  10[0,500]----(10km)---->20[100,200]----(10km)---->30[300,400]----(20km)---->50[0,500]
+```
+Example of route considering 4 nodes at the same Y coordinate.
+:::
+
+Using these basic instances, you can test all the features of the model, such as:
+
+- Single Objective Optimization
+- Multi-Objective Optimization
+- Constraint Handling
+  - Vehicle Capacity
+  - Rejection Option
+  - Flexible and Fixed Depots
+- Time-Related Constraints
+  - Time Windows
+  - Maximum Driving Time
+- Route Feasibility (pickups before drop-offs)
+
+## Solution Approach
+
+
+### Step 1: Parsing Instances
+
+The parsing process transforms an instance file of a certain type, which follows an specific convention to list information (e.g., locations, demands, fleet configuration, costs, etc.), into an instance object whose information can be formatted as an input to the solver.
+
+```{mermaid}
+graph LR;
+    A1("Instance Type 1") --> B1("Parser \nInstance Type 1");
+    A2("Instance Type 2") --> B2("Parser \nInstance Type 2");
+    AN("Instance Type N") --> BN("Parser \nInstance Type N");
+    B1 --> C(Instance\nObject);
+    B2 --> C;
+    BN --> C;
+    C --> D(Solver)
+    D --> E(Solution)
+```
+
+Here is how an instance class can be constructed:
+
+```python
+class Instance:
+    def __init__(
+        self,
+        vehicles: list[Vehicle],
+        requests: list[Request],
+        nodes: list[NodeInfo],
+        config: InstanceConfig,
+        instance_filepath: str,
+        instance_parser: str,
+    ):
+
+@dataclass
+class InstanceConfig:
+    n_vehicles: int
+    n_customers: int
+    vehicle_capacity: int
+    maximum_driving_time_min: int = None
+    time_horizon_min: int = None
+    maximum_ride_time_min: int = None
+    n_depots: int = 1
+```
+
+Notice that `InstanceConfig` is a dataclass. Dataclasses are a simpler way of representing immutable information.
+
+The rest of the instance data is also parsed into lists of  request, vehicles, and node objects.
+
+Below, an example of how instances for the *multi-depot vehicle routing problem with pick and deliviries* (MDVRPPD) are parsed.
+
+```{python}
+# | code-fold: false
+from pathlib import Path
+from pprint import pprint
+
+# Parser to load and parse DARP instance data
+import src.data.parser as parser
+
+folder_path = Path("../data/raw/mdvrppdtw/")
+
+instances_files = [
+    "vrppd_13-3-5.txt",
+    "vrppd_23-3-10.txt",
+    "vrppd_33-3-15.txt",
+]
+
+# The instances are saved into a dictionary with
+# keys corresponding to the instance name
+instances = {}
+
+for instance_file in instances_files:
+
+    # Create file path
+    instance_filepath = folder_path / instance_file
+    # print(f"\n## Processing instance at '{instance_filepath}'")
+
+    # Create an Instance object. The parser, is a function
+    # created to read files of this instance type. When working
+    # with instances from different sources, you build a parser
+    # for each source so instance files are read correctly.
+    instance_obj = parser.parse_instance_from_filepath(
+        instance_filepath,
+        instance_parser=parser.PARSER_TYPE_MVRPPDTW
+    )
+
+    instances[instance_file[:-4]] = instance_obj
+```
+
+### Step 2: Visualizing instances (sanity check)
+
+With an instance object, you can manipulate the information in different ways.
+
+For example, consider the instance `vrppd_13-3-5`:
+
+```
+/* Cardinality of the grid */
+13
+/* Cardinality of pick-up locations */
+5
+/* Cardinality of delivery locations */
+5
+/* Cardinality of depots */
+3
+/* Total number of trucks */
+1	
+/* Capacity of trucks */
+200
+/* Maximum working hours */
+8
+/* Revenue of selling an order [e/kg] */
+50
+/* Depots */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */
+1	40	50	0	0	8
+2	27	62	0	0	8
+3	73	17	0	0	8
+/* Pick up locations */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */			
+4	25	85	20	3	7
+5	20	85	20	3	7
+6	15	75	20	2	6
+7	15	80	10	1	5
+8	10	35	20	1	5
+/* Delivery locations */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */				
+9	22	75	-20	4	8
+10	22	85	-20	4	8
+11	20	80	-20	3	7
+12	18	75	-10	2	6
+13	5	35	-20	2	6
+```
+
+Below, this instance is shown using different structures to facility modeling and sanity checks.
+
+#### DataFrame of node data
+
+DataFrame view of the instance `vrppd_13-3-5`. Notice that nodes have aliases to facilitate reading. The alias of dropoff node corresponding to a pickup node labelled `N` is `N*`. This way, pickup and dropoff pairs can be determined easier.
+
+Additionally, to facilitate modeling, the depot nodes are replicated.
+This way, we wave two types of depots: origin (`O_DEPOT`) and destination (`D_DEPOT`).
+Doing so guarantees that time-related constraints are easier to model.
+For example, every node is associated with a single arrival time.
+By duplicating depots, we guarantee that the arrival time at an origin depot corresponding to departure time of this depot, whereas the arrival time at the corresponding destination depot corresonds to the arrival time at the depot after the journey has completed.
+
+```{python}
+# | tbl-cap: To facilitate modeling, depots are replicated to differentiate between origin (`O_DEPOT`) and destination (`D_DEPOT`) depots. All vehicles start from an origin depot and finish at a destination depot.
+
+# Displaying the instance data as a DataFrame for verification
+df_instance = instances["vrppd_13-3-5"].nodeset_df
+df_instance
+```
+
+
+#### Textual representation 
+
+The instance object can be print in different forms.
+
+For example, here is a print of the `InstanceConfig` object:
+
+```{python}
+pprint(instances["vrppd_13-3-5"].config)
+```
+
+And here a print of the `Instance` object:
+
+```{python}
+print(instances["vrppd_13-3-5"])
+```
+
+Such customized prints can be done by modifying the dunder method `__str__` of the objects `Instance` and `InstanceConfig`.
+
+#### Plot of node data
+
+To check if instances are read correctly, plot them.
+
+```{python}
+# | fig-cap: Node distribution of the instances.
+# | code-fold: show
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Destination depots are filtered since they are replicas
+# of origin depots
+df_nodeset = instance_obj.nodeset_df[instance_obj.nodeset_df["node_type"]!='D_DEPOT']
+
+# Create subplots for each instance
+fig, axs = plt.subplots(
+    1,
+    len(instances),
+    figsize=(5 * len(instances), 5))
+
+# Iterate over instances and plot scatter plots
+for i, (instance_file, instance_obj) in enumerate(instances.items()):
+    ax = axs[i]
+    subfig_title = f"{instance_file}\n({instance_obj.config.label})"
+    ax.set_title(subfig_title)
+    sns.scatterplot(
+        data=df_nodeset,
+        x="x",
+        y="y",
+        hue="node_type",
+        s=150,
+        ax=ax)
+    
+    # Add text annotations for the nodes
+    for index, row in df_nodeset.iterrows():
+        ax.text(
+            row['x'], row['y'],
+            str(row['alias']),
+            fontsize=7,
+            ha='center',
+            va='center',
+            color='black',
+            fontfamily="Consolas",
+        )
+```
+
+
+### Step 3. Creating Scenarios for Automatic Testing
+
+To facilitate testing, the scenario settings proposed in the assignment are encoded in a `json` (see below) in folder `{python} folder_path`.
+
+A scenario holds information about the experiment including:
+
+- Whether to consider flexible depots (i.e., vehicles do not need to leave and return to same depot.).
+- Maximum driving time for trucks is taken into account.
+- Customers can be rejected.
+- The objective function and its related parameters (e.g., weights in multi-objective approach).
+- The instances considered in the scenario.
+- The description (e.g., the question statement).
+
+When all the combinations of available parameters (such as `is_flex_depot`, `max_driving_time_h`, `allow_rejection`, etc.) for a scenario are used in the model, each combination becomes a distinct experimental scenario.
+
+This structured approach allows to systematically explore the effects of different operational variables on key outcomes like profit, cost, and service efficiency.
+
+
+```json
+{
+    "m1": {
+        "scenario_id": "M1",
+        "description": "Origin Depot Return: Develop a mathematical formulation for scenarios where all trucks must return to their starting depot.",
+        "instances": [
+            "../data/raw/mdvrppdtw/vrppd_13-3-5.txt",
+            "../data/raw/mdvrppdtw/vrppd_23-3-10.txt",
+            "../data/raw/mdvrppdtw/vrppd_33-3-15.txt"
+        ],
+        "is_flex_depot": [
+            false
+        ],
+        "max_driving_time_h": [
+            null
+        ],
+        "allow_rejection": [
+            false
+        ],
+        "obj": [
+            ["Max. Profit", null],
+            ["Max. Revenue - Travel Costs", null]
+        ],
+        "cost_per_min": [
+            0.333333333
+        ],
+        "cost_per_km": [
+            0.01
+        ],
+        "speed_km_h": [
+            50
+        ],
+        "revenue_per_load_unit": [
+            50
+        ]
+    },
+    "m2": {
+        "scenario_id": "M2",
+        "description": "Flexible Depot Return: Create a mathematical formulation for cases allowing trucks to return to any depot.",
+        "instances": [
+            "../data/raw/mdvrppdtw/vrppd_13-3-5.txt",
+            "../data/raw/mdvrppdtw/vrppd_23-3-10.txt",
+            "../data/raw/mdvrppdtw/vrppd_33-3-15.txt"
+        ],
+        "is_flex_depot": [
+            true
+        ],
+        "max_driving_time_h": [
+            null
+        ],
+        "allow_rejection": [
+            false
+        ],
+        "obj": [
+            ["Max. Profit", null],
+            ["Max. Revenue - Travel Costs", null]
+        ],
+        "cost_per_min": [
+            0.333333333
+        ],
+        "cost_per_km": [
+            0.01
+        ],
+        "speed_km_h": [
+            50
+        ],
+        "revenue_per_load_unit": [
+            50
+        ]
+    },
+    "m3": {
+        "scenario_id": "M3",
+        "description": "Minimizing Completion Time: Modify the objective function of M1 to minimize the time the last truck returns to its depot, referred to as the final makespan.",
+        "instances": [
+            "../data/raw/mdvrppdtw/vrppd_13-3-5.txt",
+            "../data/raw/mdvrppdtw/vrppd_23-3-10.txt",
+            "../data/raw/mdvrppdtw/vrppd_33-3-15.txt"
+        ],
+        "is_flex_depot": [
+            false
+        ],
+        "max_driving_time_h": [
+            null
+        ],
+        "allow_rejection": [
+            false
+        ],
+        "obj": [
+            ["Min. Final Makespan", null]
+        ],
+        "cost_per_min": [
+            0.333333333
+        ],
+        "cost_per_km": [
+            0.01
+        ],
+        "speed_km_h": [
+            50
+        ],
+        "revenue_per_load_unit": [
+            50
+        ]
+    },
+    "m4": {
+        "scenario_id": "M4",
+        "description": "Reducing Customer Latency: Adjust the objective function of M1 to minimize the total arrival time at each customer pick-up and delivery locations, referred to as the total latency.",
+        "instances": [
+            "../data/raw/mdvrppdtw/vrppd_13-3-5.txt",
+            "../data/raw/mdvrppdtw/vrppd_23-3-10.txt",
+            "../data/raw/mdvrppdtw/vrppd_33-3-15.txt"
+        ],
+        "is_flex_depot": [
+            false
+        ],
+        "max_driving_time_h": [
+            null
+        ],
+        "allow_rejection": [
+            false
+        ],
+        "obj": [
+            ["Min. Total Latency", null]
+        ],
+        "cost_per_min": [
+            0.333333333
+        ],
+        "cost_per_km": [
+            0.01
+        ],
+        "speed_km_h": [
+            50
+        ],
+        "revenue_per_load_unit": [
+            50
+        ]
+    },
+    "m5": {
+        "scenario_id": "M5",
+        "description": "Workload Limit Integration: Adapt model M2 to incorporate maximum working hours and customer rejection constraints, aiming to keep drivers' working hours within acceptable limits while allowing for strategic customer service based on profit.",
+        "instances": [
+            "../data/raw/mdvrppdtw/vrppd_13-3-5.txt",
+            "../data/raw/mdvrppdtw/vrppd_23-3-10.txt",
+            "../data/raw/mdvrppdtw/vrppd_33-3-15.txt"
+        ],
+        "is_flex_depot": [
+            true
+        ],
+        "max_driving_time_h": [
+            5,
+            6,
+            7
+        ],
+        "allow_rejection": [
+            false,
+            true
+        ],
+        "obj": [
+            ["Max. Profit", null],
+            ["Max. Revenue - Travel Costs", null]
+        ],
+        "cost_per_min": [
+            0.333333333
+        ],
+        "cost_per_km": [
+            0.01
+        ],
+        "speed_km_h": [
+            50
+        ],
+        "revenue_per_load_unit": [
+            50
+        ]
+    },
+    "m6": {
+        "scenario_id": "M6",
+        "description": "Emissions-Profit Balance: Create a multi-objective strategy based on the M5 model, balancing CO₂ emissions and profits with different weight configurations (0.5 and 0.5; 0.25 and 0.75; 0.75 and 0.25), to enhance operational efficiency and environmental responsibility.",
+        "instances": [
+            "../data/raw/mdvrppdtw/vrppd_13-3-5.txt",
+            "../data/raw/mdvrppdtw/vrppd_23-3-10.txt",
+            "../data/raw/mdvrppdtw/vrppd_33-3-15.txt"
+        ],
+        "is_flex_depot": [
+            true
+        ],
+        "max_driving_time_h": [
+            null
+        ],
+        "allow_rejection": [
+            true
+        ],
+        "obj": [
+            ["Max. Profit", null],
+            ["Max. Revenue - Travel Costs", null],
+            ["Min. Profit", null],
+            ["Min. Travel Cost", null],
+            ["Max. Travel Cost", null],
+            ["Multi-Objective Profit & Costs", {"weight_profit":0.5, "weight_costs":0.5}],
+            ["Multi-Objective Profit & Costs", {"weight_profit":0.75, "weight_costs":0.25}],
+            ["Multi-Objective Profit & Costs", {"weight_profit":0.25, "weight_costs":0.75}]
+        ],
+        "cost_per_min": [
+            0.333333333
+        ],
+        "cost_per_km": [
+            0.01
+        ],
+        "speed_km_h": [
+            50
+        ],
+        "revenue_per_load_unit": [
+            50
+        ]
+    }
+}
+```
+
+#### Reading the Scenarios
+
+The scenarios are read into `Scenario` objects and stored in a dictionary.
+
+```{python}
+# | code-fold: show
+from pprint import pprint
+from src.data.scenario import Scenario
+
+scenarios = Scenario.read(folder_path / "scenarios_speed=50km_horizon=8h.json")
+pprint(scenarios)
+```
+
+### Step 4: Run scenarios and save results
+
+We loop over all the scenarios and save the main KPIs.
+
+```python
+import os
+import numpy as np
+import pandas as pd
+from pprint import pprint
+
+import src.solution.build as build
+
+# Aggregated results
+results_filepath = "../reports/tables/results_scenarios.csv"
+routes_folder = "../reports/tables/routes"
+
+# Load data if exists
+if os.path.exists(results_filepath):
+    df_results = pd.read_csv(results_filepath,index_col=False)
+else:
+    df_results = pd.DataFrame()
+
+test_count = 0
+time_limit_min = 20
+
+for k, scenario in scenarios.items():
+    
+    for config in scenario.generate_scenario_values():
+        
+        test_count += 1
+        print("#### Test", test_count)
+
+        test_label = config.get_test_label(time_limit_min)
+
+        if not df_results.empty and test_label in df_results["Test ID"].values:
+            print(f"### Test {test_label} already executed.")
+            continue
+
+
+        pprint(config)
+
+        df_test = build.build_run(
+            config,
+            time_limit_min=time_limit_min,
+            lp_filepath="../reports/lps",
+            log_filepath="../reports/logs",
+            routes_folder=routes_folder,
+            )
+
+
+        pprint(df_test.round(2).to_dict(orient='records')[0])
+
+        # Save test results in DataFrame
+        df_results = pd.concat([df_results, df_test])
+        
+        # Date helps to track the tests
+        df_results.to_csv(results_filepath, index=False)
+    
+```
+
+
+
+## Analysis (Speed = 50km/h and Horizon = 8h)
+
+### A1 - M1 (Same Depot Return) vs. M2 (Any Depot Return)
+
+```{python}
+filter_of = ~df["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])
+filter_models = df["Scenario ID"].isin(["M1", "M2"])
+
+df_a1 = df[filter_of & filter_models]
+df_a1.pivot(index=["Instance Label"], values=kpis_system, columns=["Allow Flexible Depot Return"]).round(2)
+```
+
+### A2 - M1 (Profit) vs. M3 (Makespan) vs. M4 (Latency)
+
+```{python}
+filter_of = ~df["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])
+filter_models = df["Scenario ID"].isin(["M1", "M3", "M4"])
+
+df_a2 = df[filter_of & filter_models]
+df_a2.pivot(index=["Instance Label"], values=kpis_system, columns=["Objective"]).round(2)
+```
+
+### A3 - Workload Strategy (M5)
+
+```{python}
+filter_of = ~df["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])
+filter_models = df["Scenario ID"].isin(["M5"])
+df_a3 = df[filter_of & filter_models]
+
+df_a3.pivot(index=["Instance Label", "Allow Customer Rejection"], values=kpis_system, columns=["Maximum Working Time (h)"]).round(2)
+
+
+```
+
+### A4 - Sustainable Operation (M6)
+
+```{python}
+filter_of = ~df["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])
+filter_models = df["Scenario ID"].isin(["M6"])
+df_a4 = df[filter_of & filter_models]
+pivot_table = df_a4.pivot(index=["Instance Label"], values=kpis_system, columns=["Objective"]).round(2)
+
+pivot_table
+
+
+```
+
+### A5 - Comparative Model Analysis (M1, M2, M3, M4, M5, M6)
+
+```{python}
+df_scenario_config = df[scenario_config_cols + summary_result_cols].round(2)
+
+is_not_min_dist = ~df_scenario_config.isin(["obj_min_travel_distance"])
+df_scenario_config = df_scenario_config[is_not_min_dist]
+df_scenario_config = df_scenario_config.dropna(subset=["Objective"]).drop_duplicates()
+
+df_scenario_config['Maximum Working Time (h)'] = df_scenario_config['Maximum Working Time (h)'].map(lambda x: '-' if pd.isna(x) else int(x))
+
+
+
+# df_scenario_config.set_index([
+#     'Scenario ID',
+#     'Allow Customer Rejection',
+#     'Allow Flexible Depot Return',
+#     'Maximum Working Time (h)',
+#     ])
+
+df_scenario_config.set_index(scenario_config_cols).sort_index()
+```
+
+
+### Max. Runtime 10min vs. 20min
+
+Running the experiments for a maximum of 20 minutes led to moderate improvements. Below, we show only the scenario configurations where a difference was observed.
+
+```{python}
+pivot_table = df_raw[~df_raw["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])].pivot(index=scenario_config_cols, values=["Objective Value"], columns=["Max Runtime (min)"])
+pivot_table.round(5)[pivot_table[('Objective Value', 10)]!=pivot_table[('Objective Value', 20)]]
+
+```
+
+```{python}
+from IPython.display import IFrame, display, SVG, Markdown
+folder_figures = "../reports/figures/"
+folder_routes = "../reports/tables/routes/"
+
+is_objective = df['Objective'] == "Max. Profit"
+# print(df)
+```
+
+```{python}
+#| echo: false
+import os
+
+def get_scenario_label(row):
+    label = f"**{row['Objective']}**"
+    if row['Allow Flexible Depot Return']:
+      label+= f" / Any Depot Return"
+    else:
+      label+= f" / Same Depot Return"
+    if not pd.isna(row['Maximum Working Time (h)']):
+      label+=f" / Max. Working (h)={row['Maximum Working Time (h)']}"
+    if row['Allow Customer Rejection']:
+      label+=f" / Allow Rejection"
+    else:
+      label+=f" / Service All"
+
+    return f"`{row['Instance Label']}` ({label})"
+
+
+
+def display_plot_if_exists(folder_figures, test_name):
+  filename=f"{folder_figures}{test_name}.svg"
+  if os.path.exists(filename):
+      # print(filename)
+      display(Markdown(f"\n\n##### Plot"))
+      display(SVG(filename=filename))
+
+def display_kpis(results_scenario):
+
+  display(Markdown(f"\n\n##### KPIs"))
+  df_r = pd.DataFrame(
+    results_scenario.values.reshape(1,-1),
+    columns=results_scenario.index)
+  df_r = df_r.round(2)
+
+  display(Markdown(
+      f"{df_r.to_markdown(index=False)}"
+  ))
+
+def display_routes_if_exists(folder_routes, filename):
+
+  route_filepath = f"{folder_routes}{filename}.csv"
+
+  if os.path.exists(route_filepath):
+      df_route = pd.read_csv(route_filepath, index_col=False)
+      df_route = df_route.iloc[:,1:]
+      df_route.drop(columns=["service_duration"], inplace=True)
+      
+      df_route[["earliest", "arrival", "latest", "departure"]] = df_route[["earliest", "arrival", "latest", "departure"]]/60
+      df_route[["earliest", "arrival", "latest", "departure"]]= df_route[["earliest", "arrival", "latest", "departure"]].round(2)
+      # print(df_route)
+      display(Markdown(f"\n\n##### Routes"))
+
+
+      df_route = df_route.set_index(["vehicle_id", "id", "alias"])
+      display(df_route)
+
+def display_results(df):
+
+    for m in df["Scenario ID"].unique():
+        scenario = df["Scenario ID"] == m
+        # print(m)
+        df_m = df[scenario].copy()
+        # print(df_m)
+        df_m_kpis = df_m[scenario_config_cols+ kpis_system_h].set_index(scenario_config_cols)
+        
+        display(Markdown(f"\n\n### {m}"))
+        # display(Markdown(df_m_kpis.to_markdown(index=True)))
+        display(df_m_kpis.sort_index().round(2))
+
+        for _, row in df_m.iterrows():
+            
+            display(Markdown(
+                f"\n\n#### {get_scenario_label(row)}"))
+            
+            
+            results_scenario = row[kpis_system_h]
+
+            display(Markdown("::: {.panel-tabset}"))
+            
+
+            display_plot_if_exists(folder_figures, row["Test ID"])
+            display_routes_if_exists(folder_routes, row["Test ID"])
+            display_kpis(results_scenario)
+            
+
+            display(Markdown(":::"))
+  
+```
+
+
+## Detailed Results (Speed = 50km/h and Horizon = 8h)
+
+
+
+```{python}
+#| echo: false
+#| output: asis
+
+display_results(df_result[(df_result['Speed (km/h)']==50) & (df_result['Maximum Driving Time (min)']==8*60)].copy())
+
+```
