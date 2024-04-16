@@ -236,9 +236,9 @@ A scenario holds information about the experiment including:
 - Whether to consider flexible depots (i.e., vehicles do not need to leave and return to same depot.).
 - Maximum driving time for trucks is taken into account.
 - Customers can be rejected.
-- The objective function.
+- The objective function and its related parameters (e.g., weights in multi-objective approach).
 - The instances considered in the scenario.
-- The description (e.g., the question statement.).
+- The description (e.g., the question statement).
 
 These scenarios are read into `Scenario` objects and stored in a dictionary.
 
@@ -254,7 +254,7 @@ pprint(scenarios)
 
 We loop over all the scenarios and save the main KPIs.
 
-```{python}
+```python
 import os
 import numpy as np
 import pandas as pd
@@ -273,7 +273,7 @@ else:
     df_results = pd.DataFrame()
 
 test_count = 0
-time_limit_min = 10
+time_limit_min = 20
 
 for k, scenario in scenarios.items():
     

@@ -1,0 +1,35 @@
+/* Cardinality of the grid */
+13
+/* Cardinality of pick-up locations */
+5
+/* Cardinality of delivery locations */
+5
+/* Cardinality of depots */
+3
+/* Total number of trucks */
+1	
+/* Capacity of trucks */
+200
+/* Maximum working hours */
+8
+/* Revenue of selling an order [e/kg] */
+50
+/* Depots */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */
+1	40	50	0	0	8
+2	27	62	0	0	8
+3	73	17	0	0	8
+/* Pick up locations */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */			
+4	25	85	20	3	7
+5	20	85	20	3	7
+6	15	75	20	2	6
+7	15	80	10	1	5
+8	10	35	20	1	5
+/* Delivery locations */
+/* node_ID, x_coord, y_coord, demand, tw_start, tw_end */				
+9	22	75	-20	4	8
+10	22	85	-20	4	8
+11	20	80	-20	3	7
+12	18	75	-10	2	6
+13	5	35	-20	2	6

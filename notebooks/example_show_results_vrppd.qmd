@@ -7,14 +7,108 @@ format:
     grid: 
       body-width: 1000px
       margin-width: 1000px
+    mermaid:
+      theme: neutral
+    theme: simplex
 # toc-expand: true
 toc-depth: 5
 execute:
   echo: false
+highlight-style: dracula
 css: table.css
 ---
 
-# Assignment 1
+
+
+```{python}
+import sys
+ # Adding parent directory to the paths. This allows you to load
+ # packages in folders located one level before.
+sys.path.append("../")
+
+# # IPython magic commands for auto-reloading modules
+# %load_ext autoreload
+# %autoreload 2
+
+import pandas as pd
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 150)
+import numpy as np
+
+import os
+
+df_raw = pd.read_csv("../reports/tables/results_scenarios.csv")
+
+  
+# Filter invalid scenario combinations
+df = df_raw[((df_raw['Speed (km/h)']==25) & (df_raw['Maximum Driving Time (min)']==24*60))|((df_raw['Speed (km/h)']==50) & (df_raw['Maximum Driving Time (min)']==8*60))].copy()
+
+
+df = df[df["Max Runtime (min)"] == 10]
+
+
+
+kpis_system = [
+    'Objective Value',
+    'Objective Bound',
+    'N. of Serviced',
+    'Total Distance (km)',
+    'Total Duration (min)',
+    # 'Total Waiting (min)',
+    #'Average Waiting (min)',
+    # 'Total Transit (min)',
+    'Total Latency (min)', 
+    'Final Makespan (min)',
+    #'Average Transit (min)',
+    'Cpu Time (sec)',
+    'Work',
+    "Solver Gap (%)"
+]
+
+scenario_config_cols = [
+    'Speed (km/h)',
+    'Maximum Driving Time (min)',
+    'Scenario ID',
+    'Allow Flexible Depot Return',
+    'Maximum Working Time (h)',
+    'Allow Customer Rejection',
+    'Instance Label',
+    'Objective',
+]
+
+summary_result_cols = [
+    'Objective Value',
+    'Objective Bound',
+    "Solver Gap (%)",
+    'Cpu Time (sec)',
+    'Work',
+]
+
+# Remove objectives not used
+df = df[~df["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])]
+
+df = df.sort_values(by=scenario_config_cols)
+df["Solver Gap"] = df["Solver Gap"]*100
+df.rename(columns={"Solver Gap": "Solver Gap (%)"}, inplace=True)
+
+df_result = df[scenario_config_cols + ["Test ID"] + kpis_system]\
+    .dropna(subset=["Objective"])\
+    .drop_duplicates()\
+    .round(2)
+
+columns_min = [c for c in kpis_system if "(min)" in c]
+columns_h = [c.replace("(min)","(h)") for c in columns_min]
+kpis_system_h = [c.replace("(min)","(h)") for c in kpis_system]
+# print("kpis", kpis_system_h)
+# print(columns_min, columns_h)
+df_result[columns_h] = df_result[columns_min]/60
+df_result.drop(columns=columns_min, inplace=True)
+# df_result.columns
+# df_result[kpis_system_h]
+```
+
+# Assignment 1 - Furniture Distribution Company
 
 
 ## Mathematical Model
@@ -70,7 +164,7 @@ Note that if this includes waiting times (e.g., at pickup nodes), ensuring drive
 - **$B^k_i$**: Continuous variable representing the time vehicle $k$ begins servicing node $i$.
 - **$B^k_1$**: Continuous variable representing the start working time of vehicle $k$ at the origin depot.
 - **$B^k_2$**: Continuous variable representing the end working time of vehicle $k$ at the destination depot.
-- **$t^k$**: Continuous variable representing the total driving time (i.e., $B^k_2 - B^k_2$) of vehicle $k$.
+- **$t^k$**: Continuous variable representing the total driving time (i.e., $B^k_2 - B^k_1$) of vehicle $k$.
 - **$m$**: Continuous variable representing the makespan, or the latest finish time among all vehicles.
 
 ### Objective Functions
@@ -165,25 +259,6 @@ where $w_1$ and $w_2$ must satisfy $w_1 + w_2 = 1$, and $Z(x)$ is the combined s
 Finally, the goal is to maximize $Z(x)$, which now represents a balance between maximizing profit and minimizing costs based on the assigned weights:
 $$\max Z(x) = \max \big(w_1 \cdot p_{\text{norm}}(x) + w_2 \cdot c_{\text{norm}}(x)\big).$$
 
-
-### Parameter Settings
-
-Below is a detailed table with the values for each of the parameters mentioned in the question:
-
-| **Parameter**             | **Description**                                           | **Value**                      |
-|---------------------------|-----------------------------------------------------------|--------------------------------|
-| $c^{\text{distance}}$ | Cost per kilometer traveled. Calculated from CO₂ emission (200 g/km) and cost per kg of CO₂ (€0.05). | €0.01 (€0.05/kg $\times$ 0.2 kg/km) |
-| $c^{\text{time}}$     | Cost per hour of driving.                             | €20/hour                       |
-| $s$                   | Average speed vehicles  (km/h).                       | 25km/h, 50km/h                 |
-| $p^k$                 | Revenue per unit load per vehicle $k$.                | €50/kg                         |
-| $q_i$                 | Load quantity at node $i$ (specify if known).         | Specific per node (e.g., based on customer orders) |
-| $e_i$, $l_i$          | Earliest and latest service times at node $i$.        | Specific per node (e.g., based on customer orders) |
-| $t^{\text{max}}$      | Maximum driving time allowed for any vehicle.         | 5, 7, and 8 hours (only for model M5) |
-| $\text{dist}(i, j)$   | Euclidean distance between nodes $i$ and $j$.         | Computed from node coordinates |
-| $\text{time}(i, j)$             | Travel time between nodes $i$ and $j$, calculated as distance/speed. | $\frac{\text{dist}(i, j)}{s}$ km/h, rounded to 2 decimal places |
-| $d_i$                 | Duration of service required at node $i$ (loading/unloading time is disregarded). | 0 (loading/unloading time disregarded) |
-| $H_{ijk}$, $M_{ijk}$, $W_{ijk}$ | Large constants for linearization in constraints.          | Values are tightly defined for each $(i,j,k)$ combination to avoid numerical instability |
-
 ### Constraints
 
 #### Service Constraints
@@ -276,42 +351,24 @@ Below is a detailed table with the values for each of the parameters mentioned i
   t^k = B^k_2 - B^k_1 \quad \forall k \in K
   $$
 
+### Parameter Settings
 
-## Instance Settings
+Below is a detailed table with the values for each of the parameters mentioned in the assignment:
 
+| **Parameter**             | **Description**                                           | **Value**                      |
+|---------------------------|-----------------------------------------------------------|--------------------------------|
+| $c^{\text{distance}}$ | Cost per kilometer traveled. Calculated from CO₂ emission (200 g/km) and cost per kg of CO₂ (€0.05). | €0.01 (€0.05/kg $\times$ 0.2 kg/km) |
+| $c^{\text{time}}$     | Cost per hour of driving.                             | €20/hour                       |
+| $s$                   | Average speed vehicles  (km/h).                       | 50km/h                 |
+| $p^k$                 | Revenue per unit load per vehicle $k$.                | €50/kg                         |
+| $q_i$                 | Load quantity at node $i$ (specify if known).         | Specific per node (e.g., based on customer orders) |
+| $e_i$, $l_i$          | Earliest and latest service times at node $i$.        | Specific per node (e.g., based on customer orders) |
+| $t^{\text{max}}$      | Maximum driving time allowed for any vehicle.         | 5, 7, and 8 hours (only for model M5) |
+| $\text{dist}(i, j)$   | Euclidean distance between nodes $i$ and $j$.         | Computed from node coordinates |
+| $\text{time}(i, j)$             | Travel time between nodes $i$ and $j$, calculated as distance/speed. | $\frac{\text{dist}(i, j)}{s}$ km/h, rounded to 2 decimal places |
+| $d_i$                 | Duration of service required at node $i$ (loading/unloading time is disregarded). | 0 (loading/unloading time disregarded) |
+| $H_{ijk}$, $M_{ijk}$, $W_{ijk}$ | Large constants for linearization in constraints.          | Values are tightly defined for each $(i,j,k)$ combination to avoid numerical instability |
 
-```{python}
-import sys
- # Adding parent directory to the paths. This allows you to load
- # packages in folders located one level before.
-sys.path.append("../")
-
-# # IPython magic commands for auto-reloading modules
-# %load_ext autoreload
-# %autoreload 2
-```
-
-```{python}
-import pandas as pd
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 150)
-import numpy as np
-
-import os
-
-df_raw = pd.read_csv("../reports/tables/results_scenarios.csv")
-
-  
-# Filter invalid scenario combinations
-df = df_raw[((df_raw['Speed (km/h)']==25) & (df_raw['Maximum Driving Time (min)']==24*60))|((df_raw['Speed (km/h)']==50) & (df_raw['Maximum Driving Time (min)']==8*60))].copy()
-
-
-df = df[df["Max Runtime (min)"] == 10]
-
-
-
-```
 
 
 ## KPIs
@@ -329,107 +386,6 @@ df = df[df["Max Runtime (min)"] == 10]
 11. **Work**:  A deterministic measure of computational effort, independent of runtime variability (see [Work Attribute - Gurobi](https://www.gurobi.com/documentation/current/refman/work.html)).
 12. **Solver Gap (%)**: Percentage difference between the objective value and the objective bound.
 
-
-
-```{python}
-
-kpis_system = [
-    'Objective Value',
-    'Objective Bound',
-    'N. of Serviced',
-    'Total Distance (km)',
-    'Total Duration (min)',
-    # 'Total Waiting (min)',
-    #'Average Waiting (min)',
-    # 'Total Transit (min)',
-    'Total Latency (min)', 
-    'Final Makespan (min)',
-    #'Average Transit (min)',
-    'Cpu Time (sec)',
-    'Work',
-    "Solver Gap (%)"
-]
-
-scenario_config_cols = [
-    'Speed (km/h)',
-    'Maximum Driving Time (min)',
-    'Scenario ID',
-    'Allow Flexible Depot Return',
-    'Maximum Working Time (h)',
-    'Allow Customer Rejection',
-    'Instance Label',
-    'Objective',
-]
-
-summary_result_cols = [
-    'Objective Value',
-    'Objective Bound',
-    "Solver Gap (%)",
-    'Cpu Time (sec)',
-    'Work',
-]
-
-# Remove objectives not used
-df = df[~df["Objective"].isin(["Min. Travel Distance", "Max. Revenue - Travel Costs"])]
-
-df = df.sort_values(by=scenario_config_cols)
-df["Solver Gap"] = df["Solver Gap"]*100
-df.rename(columns={"Solver Gap": "Solver Gap (%)"}, inplace=True)
-
-```
-
-
-```{python}
-df_result = df[scenario_config_cols + ["Test ID"] + kpis_system]\
-    .dropna(subset=["Objective"])\
-    .drop_duplicates()\
-    .round(2)
-
-columns_min = [c for c in kpis_system if "(min)" in c]
-columns_h = [c.replace("(min)","(h)") for c in columns_min]
-kpis_system_h = [c.replace("(min)","(h)") for c in kpis_system]
-# print("kpis", kpis_system_h)
-# print(columns_min, columns_h)
-df_result[columns_h] = df_result[columns_min]/60
-df_result.drop(columns=columns_min, inplace=True)
-# df_result.columns
-# df_result[kpis_system_h]
-```
-
-## Testing on Toy Instances
-
-Testing a *Mixed Integer Linear Programming* (MILP) model on simplified or "toy" instances before tackling complex scenarios allows us to validate the correctness of the model's implementation, ensure it handles all constraints appropriately, and troubleshoot any potential issues in a controlled environment.
-
-Here are a few examples of toy instances that can be used to test various aspects of a MILP model:
-
-- **One Depot, One Customer, One Vehicle**: This basic setup includes a single depot, one pickup point, and one delivery location, managed by one vehicle. This scenario helps in checking the basic logic of routing, load handling, and back-to-depot constraints without the complexity of multiple nodes and vehicles.
-- **One Depot, One Customer, One Vehicle with No Time Windows**: Similar to the first, but without time window constraints. This tests the model's performance under less restricted conditions, focusing purely on spatial and capacity constraints.
-- **Two Depots, One Customer, One Vehicle**: Introduces a choice between two depots, adding a layer of complexity and testing the model’s ability to optimally choose between different starting points.
-- **Two Depots, Two Customers, One Vehicle**: A more complex scenario involving multiple pickups and deliveries, which tests the model's capacity to optimize routes involving multiple stops.
-- **Two Depots, Two Competing Customers, One Vehicle**: A scenario where the routing needs to pick one of the customers located near each depot (i.e., test rejection).
-
-To make tests easier, choose (x, y) coordinates that facilitate distance calculation. For example, picking up all customers below will result in a total distance traveled equaling 40km:
-
-::: {#fig-example_route}
-```
-    Node types:  Depot                   Pickup                    Dropoff                   Depot
-    CoordX[TW]:  10[0,500]----(10km)---->20[100,200]----(10km)---->30[300,400]----(20km)---->50[0,500]
-```
-Example of route considering 4 nodes at the same Y coordinate.
-:::
-
-Using these basic instances, you can test all the features of the model, such as:
-
-- Single Objective Optimization
-- Multi-Objective Optimization
-- Constraint Handling
-  - Vehicle Capacity
-  - Rejection Option
-  - Flexible and Fixed Depots
-- Time-Related Constraints
-  - Time Windows
-  - Maximum Driving Time
-- Route Feasibility (pickups before drop-offs)
 
 ## Solution Approach
 
@@ -483,6 +439,7 @@ Below, an example of how instances for the *multi-depot vehicle routing problem 
 
 ```{python}
 # | code-fold: false
+# | echo: true
 from pathlib import Path
 from pprint import pprint
 
@@ -519,13 +476,19 @@ for instance_file in instances_files:
     instances[instance_file[:-4]] = instance_obj
 ```
 
-### Step 2: Visualizing instances (sanity check)
+Instance settings:
+
+```{python}
+df_raw[['Instance Label', 'Number Of Depots', 'Number Of Customers', 'Number Of Vehicles', 'Vehicle Capacity']].drop_duplicates().reset_index(drop=True)
+```
+
+#### Visualizing instances (sanity check)
 
 With an instance object, you can manipulate the information in different ways.
 
 For example, consider the instance `vrppd_13-3-5`:
 
-```
+```raw
 /* Cardinality of the grid */
 13
 /* Cardinality of pick-up locations */
@@ -565,7 +528,7 @@ For example, consider the instance `vrppd_13-3-5`:
 
 Below, this instance is shown using different structures to facility modeling and sanity checks.
 
-#### DataFrame of node data
+##### DataFrame of Node Data
 
 DataFrame view of the instance `vrppd_13-3-5`. Notice that nodes have aliases to facilitate reading. The alias of dropoff node corresponding to a pickup node labelled `N` is `N*`. This way, pickup and dropoff pairs can be determined easier.
 
@@ -584,7 +547,7 @@ df_instance
 ```
 
 
-#### Textual representation 
+##### Textual Representation 
 
 The instance object can be print in different forms.
 
@@ -602,19 +565,16 @@ print(instances["vrppd_13-3-5"])
 
 Such customized prints can be done by modifying the dunder method `__str__` of the objects `Instance` and `InstanceConfig`.
 
-#### Plot of node data
+##### Plot of Node Data
 
 To check if instances are read correctly, plot them.
 
 ```{python}
 # | fig-cap: Node distribution of the instances.
-# | code-fold: show
+# | code-fold: false
+# | echo: true
 import seaborn as sns
 import matplotlib.pyplot as plt
-
-# Destination depots are filtered since they are replicas
-# of origin depots
-df_nodeset = instance_obj.nodeset_df[instance_obj.nodeset_df["node_type"]!='D_DEPOT']
 
 # Create subplots for each instance
 fig, axs = plt.subplots(
@@ -625,6 +585,10 @@ fig, axs = plt.subplots(
 # Iterate over instances and plot scatter plots
 for i, (instance_file, instance_obj) in enumerate(instances.items()):
     ax = axs[i]
+    # Destination depots are filtered since they are replicas
+    # of origin depots
+    df_nodeset = instance_obj.nodeset_df[instance_obj.nodeset_df["node_type"]!='D_DEPOT']
+
     subfig_title = f"{instance_file}\n({instance_obj.config.label})"
     ax.set_title(subfig_title)
     sns.scatterplot(
@@ -648,10 +612,44 @@ for i, (instance_file, instance_obj) in enumerate(instances.items()):
         )
 ```
 
+### Step 2. Testing on Toy Instances
+
+Testing a *Mixed Integer Linear Programming* (MILP) model on simplified or "toy" instances before tackling complex scenarios allows us to validate the correctness of the model's implementation, ensure it handles all constraints appropriately, and troubleshoot any potential issues in a controlled environment.
+
+Here are a few examples of toy instances that can be used to test various aspects of a MILP model:
+
+- **One Depot, One Customer, One Vehicle**: This basic setup includes a single depot, one pickup point, and one delivery location, managed by one vehicle. This scenario helps in checking the basic logic of routing, load handling, and back-to-depot constraints without the complexity of multiple nodes and vehicles.
+- **One Depot, One Customer, One Vehicle with No Time Windows**: Similar to the first, but without time window constraints. This tests the model's performance under less restricted conditions, focusing purely on spatial and capacity constraints.
+- **Two Depots, One Customer, One Vehicle**: Introduces a choice between two depots, adding a layer of complexity and testing the model’s ability to optimally choose between different starting points.
+- **Two Depots, Two Customers, One Vehicle**: A more complex scenario involving multiple pickups and deliveries, which tests the model's capacity to optimize routes involving multiple stops.
+- **Two Depots, Two Competing Customers, One Vehicle**: A scenario where the routing needs to pick one of the customers located near each depot (i.e., test rejection).
+
+To make tests easier, choose (x, y) coordinates that facilitate distance calculation. For example, picking up all customers below will result in a total distance traveled equaling 40km:
+
+::: {#fig-example_route}
+```
+    Node types:  Depot                   Pickup                    Dropoff                   Depot
+    CoordX[TW]:  10[0,500]----(10km)---->20[100,200]----(10km)---->30[300,400]----(20km)---->50[0,500]
+```
+Example of route considering 4 nodes at the same Y coordinate.
+:::
+
+Using these basic instances, you can test all the features of the model, such as:
+
+- Single Objective Optimization
+- Multi-Objective Optimization
+- Constraint Handling
+  - Vehicle Capacity
+  - Rejection Option
+  - Flexible and Fixed Depots
+- Time-Related Constraints
+  - Time Windows
+  - Maximum Driving Time
+- Route Feasibility (pickups before drop-offs)
 
 ### Step 3. Creating Scenarios for Automatic Testing
 
-To facilitate testing, the scenario settings proposed in the assignment are encoded in a `json` (see below) in folder `{python} folder_path`.
+To facilitate testing, the scenario settings proposed in the assignment are encoded in a `json` (see below) in folder `../data/raw/mdvrppdtw/`.
 
 A scenario holds information about the experiment including:
 
@@ -888,7 +886,8 @@ This structured approach allows to systematically explore the effects of differe
 The scenarios are read into `Scenario` objects and stored in a dictionary.
 
 ```{python}
-# | code-fold: show
+# | code-fold: false
+# | echo: true
 from pprint import pprint
 from src.data.scenario import Scenario
 
@@ -896,7 +895,7 @@ scenarios = Scenario.read(folder_path / "scenarios_speed=50km_horizon=8h.json")
 pprint(scenarios)
 ```
 
-### Step 4: Run scenarios and save results
+### Step 4: Running Scenarios and Saving Results
 
 We loop over all the scenarios and save the main KPIs.
 
@@ -919,7 +918,7 @@ else:
     df_results = pd.DataFrame()
 
 test_count = 0
-time_limit_min = 20
+time_limit_min = 10
 
 for k, scenario in scenarios.items():
     
@@ -956,7 +955,7 @@ for k, scenario in scenarios.items():
     
 ```
 
-
+All the results are saved in a file called `results_scenarios.csv`.
 
 ## Analysis (Speed = 50km/h and Horizon = 8h)
 

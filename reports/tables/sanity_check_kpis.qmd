@@ -1,0 +1,73 @@
+```{python}
+import pandas as pd
+df = pd.read_csv("routes/scenario_id=M1-instance_label=vrppd_23-3-10-flex=False-obj=Max. Profit-allow_rejection=False-max_driving_time_h=None-max_runtime_min=10-cost_per_min=0.33-cost_per_km=0.01-speed_km_h=50-revenue_per_load_unit=50.csv")
+# df = pd.read_csv("routes/scenario_id=M1-instance_label=vrppd_13-3-5-flex=False-obj=Max. Profit-allow_rejection=False-max_driving_time_h=None-max_runtime_min=10-cost_per_min=0.33-cost_per_km=0.01-speed_km_h=50-revenue_per_load_unit=50.csv")
+df
+```
+
+```{python}
+
+def compute_transport_metrics(df, speed, revenue, emission, cost_emission, cost_driving_h):
+    # Compute costs
+    cost_per_km = cost_emission * emission  # euro/km
+    total_distance = sum(df["distance_previous"])
+    total_hours_driving = total_distance / speed
+    final_makespan = max(df["arrival"]) / 60
+    total_hours_working = (max(df["arrival"]) - min(df["arrival"])) / 60
+    latency = sum(df[(df["node_type"]=="PU") | (df["node_type"]=="DO")]["arrival"])/60
+    # Compute total load
+    total_load = 0
+    for i, row in df.iterrows():
+        if row["node_type"] == "PU" and i > 0:  # check for previous row existence
+            total_load += row["vehicle_load"] - df.iloc[i - 1]["vehicle_load"]
+
+    # Compute total distance
+    dist = 0
+    coordinates = df[["x", "y"]].values
+    for o, d in zip(coordinates[:-1], coordinates[1:]):
+        dist += math.sqrt((float(d[0]) - float(o[0])) ** 2 + (float(d[1]) - float(o[1])) ** 2)
+
+    cost_km = cost_per_km * total_distance
+    total_revenue = total_load * revenue
+    cost_driving = cost_driving_h * total_hours_driving
+
+    # Create and return the dictionary with formatted values
+    result = {
+        "Total Distance": f"{total_distance:,.2f} km",
+        "Total Hours Driving (distance/speed)": f"{total_hours_driving:,.2f} hours",
+        "Total Hours Working": f"{total_hours_working:,.2f} hours",
+        "Total Euclidean Distance": f"{dist:,.2f} km",
+        "Total Cost Driving": f"{cost_driving:,.2f} euros",
+        "Total Cost Per Km": f"{cost_km:,.2f} euros",
+        "Total Load Transported": f"{total_load:,.2f} kg",
+        "Final Makespan": f"{final_makespan:,.2f} h",
+        "Total Latency": f"{latency:,.2f} h",
+        "Total Revenue": f"{total_revenue:,.2f} euros",
+        "Revenue After Driving and Emission Costs": f"{total_revenue - cost_driving - cost_km:,.2f} euros",
+        "Revenue After Driving Costs": f"{total_revenue - cost_driving:,.2f} euros"
+    }
+
+    return result
+
+```
+
+```{python}
+import math
+import numpy as np
+from pprint import pprint
+
+speed = 50 #km/h
+revenue = 50 # euros
+emission = 0.2 # kg/km
+cost_emission = 0.05 #euro/kg
+cost = cost_emission * emission # euro/km
+
+
+
+cost_driving_h = 20 #euro/hour
+
+results = compute_transport_metrics(df, speed, revenue, emission, cost_emission, cost_driving_h)
+
+pprint(results)
+
+```
